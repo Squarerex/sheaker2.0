@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+  <h1>Welcome, {{ request.user.username }}</h1>
+  <p>User role: <strong>{{ user_type }}</strong></p>
+  <p>This is the shell. We’ll plug live data later.</p>
+{% endblock %}
