@@ -28,3 +28,5 @@ Thumbs.db
 .env.prod
 .evn
 evn.prod
+
+tmp_imports/

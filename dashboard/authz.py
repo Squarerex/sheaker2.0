@@ -36,7 +36,7 @@ def role_required(roles: RolesArg):
       @role_required("admin")
       @role_required(["admin", "editor"])
       @role_required({"admin", "editor", "marketer"})
-      @role_required(["staff"])  # optional: allow any staff user
+      @role_required(["customer"])
     """
     normalized = _normalize_roles(roles)
 

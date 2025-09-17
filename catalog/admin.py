@@ -14,9 +14,7 @@ class VariantInline(admin.TabularInline):
 
 
 class MediaInlineForProduct(admin.TabularInline):
-    """
-    Product-level media only (variant left blank). We don't expose the 'variant' FK here.
-    """
+    """Product-level media only (variant left blank)."""
 
     model = Media
     fk_name = "product"
@@ -31,9 +29,7 @@ class MediaInlineForProduct(admin.TabularInline):
 
 
 class MediaInlineForVariant(admin.TabularInline):
-    """
-    Variant-level media only. Product is implied via the variant; we show the same fields.
-    """
+    """Variant-level media only."""
 
     model = Media
     fk_name = "variant"
@@ -60,12 +56,14 @@ class ProductAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("is_active", "brand", "category", "subcategory")
+    # NOTE: if Variant has no related_name="variants", change to "variant_set__sku"
     search_fields = ("title", "slug", "variants__sku", "brand")
     inlines = [VariantInline, MediaInlineForProduct]
-    prepopulated_fields = {"slug": ("title",)}  # convenience; save() also auto-slugs
-
-    # Useful for large datasets
+    prepopulated_fields = {"slug": ("title",)}
     autocomplete_fields = ("category", "subcategory")
+    list_select_related = ("category", "subcategory")
+    ordering = ("-created_at",)
+    list_per_page = 50
 
 
 @admin.register(Variant)
@@ -75,6 +73,8 @@ class VariantAdmin(admin.ModelAdmin):
     search_fields = ("sku", "product__title", "product__brand")
     inlines = [InventoryInline, MediaInlineForVariant]
     autocomplete_fields = ("product",)
+    list_select_related = ("product",)
+    ordering = ("sku",)
 
 
 @admin.register(Media)
@@ -83,14 +83,19 @@ class MediaAdmin(admin.ModelAdmin):
     list_filter = ("kind", "is_main")
     search_fields = ("product__title", "variant__sku", "alt")
     autocomplete_fields = ("product", "variant")
+    list_select_related = ("product", "variant")
+    ordering = ("product", "variant", "position")
 
 
 @admin.register(Inventory)
 class InventoryAdmin(admin.ModelAdmin):
+    # Ensure Inventory has an `in_stock` property/method; if not, remove it.
     list_display = ("variant", "qty_available", "safety_stock", "warehouse", "in_stock")
     list_filter = ("warehouse",)
     search_fields = ("variant__sku",)
     autocomplete_fields = ("variant",)
+    list_select_related = ("variant",)
+    ordering = ("-qty_available",)
 
 
 @admin.register(Category)
@@ -98,6 +103,7 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "slug", "is_active")
     prepopulated_fields = {"slug": ("name",)}
     search_fields = ("name", "slug")
+    ordering = ("name",)
 
 
 @admin.register(Subcategory)
@@ -105,5 +111,7 @@ class SubcategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "category", "slug", "is_active")
     list_filter = ("category",)
     prepopulated_fields = {"slug": ("name",)}
-    search_fields = ("name", "slug")
+    search_fields = ("name", "slug", "category__name")
     autocomplete_fields = ("category",)
+    list_select_related = ("category",)
+    ordering = ("category__name", "name")

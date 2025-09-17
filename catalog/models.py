@@ -55,7 +55,7 @@ class Subcategory(models.Model):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = [("category", "slug")]
+        unique_together = [("category", "slug"), ("category", "name")]
         ordering = ["category__name", "name"]
 
     def save(self, *args, **kwargs):
@@ -169,6 +169,7 @@ class Variant(TimeStampedModel):
             models.Index(fields=["sku"]),
             models.Index(fields=["is_active"]),
             models.Index(fields=["product", "sku"]),
+            models.Index(fields=["currency"]),
         ]
         ordering = ["product_id", "sku"]
 

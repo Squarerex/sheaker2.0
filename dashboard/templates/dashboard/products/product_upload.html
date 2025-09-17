@@ -1,0 +1,178 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block content %}
+<h1>Bulk Product Upload</h1>
+
+{% if messages %}
+  <ul class="messages">
+    {% for m in messages %}
+      <li class="{{ m.tags }}">{{ m }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+{% if step == "upload" %}
+  <form method="post" enctype="multipart/form-data" class="card">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Upload & Preview</button>
+  </form>
+
+  <p class="mt-3 text-muted">
+    Accepted: <code>.json</code> or <code>.csv</code>. Required fields: <strong>title, sku, price</strong>.
+    <br>
+    Allowed currencies will be validated at preview/commit.
+  </p>
+
+  <div class="mt-2">
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'dashboard:product_upload_sample_json' %}">Download sample JSON</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{% url 'dashboard:product_upload_sample_csv' %}">Download sample CSV</a>
+  </div>
+
+{% elif step == "preview" %}
+  {% url 'admin:catalog_category_changelist' as admin_category_changelist %}
+  {% url 'admin:catalog_subcategory_changelist' as admin_subcategory_changelist %}
+
+  <div class="mb-2">
+    <p>
+      <strong>Total:</strong> {{ preview.stats.total }}
+      &nbsp;|&nbsp;<strong>Create:</strong> {{ preview.stats.to_create }}
+      &nbsp;|&nbsp;<strong>Update:</strong> {{ preview.stats.to_update }}
+      &nbsp;|&nbsp;<strong>Skip:</strong> {{ preview.stats.to_skip }}
+      &nbsp;|&nbsp;<strong>Errors:</strong> {{ preview.stats.errors }}
+    </p>
+    <p class="text-muted">
+      Tip: Click Category/Subcategory to open the Django admin list filtered by that name.
+      <br>
+      Allowed currencies: {{ preview.allowed_currencies|join:", " }}
+    </p>
+  </div>
+
+  <!-- Column mapping UI (mainly for CSVs) -->
+  <details class="mb-3">
+    <summary><strong>Optional:</strong> Map your CSV headers to expected fields</summary>
+    <form method="post" action="{% url 'dashboard:product_upload_preview' %}" class="mt-2">
+      {% csrf_token %}
+      <input type="hidden" name="token" value="{{ preview.token }}">
+      <input type="hidden" name="upsert" value="{% if preview.upsert %}1{% else %}0{% endif %}">
+      <input type="hidden" name="apply_mapping" value="1">
+      <div class="row">
+        {% for nf in normalized_fields %}
+          <div class="col-md-4 mb-2">
+            <label class="form-label">{{ nf }}</label>
+            <select class="form-select form-select-sm" name="mapping[{{ nf }}]">
+              <option value="">-- (not mapped) --</option>
+              {% for h in preview.source_headers %}
+                <option value="{{ h }}" {% if preview.mapping|get_item:nf == h %}selected{% endif %}>{{ h }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="btn btn-outline-primary btn-sm">Apply mapping & re-preview</button>
+    </form>
+  </details>
+
+  <!-- Commit controls -->
+  <form method="post" action="{% url 'dashboard:product_upload_commit' %}" class="mb-3 d-flex gap-2 align-items-center">
+    {% csrf_token %}
+    <input type="hidden" name="token" value="{{ preview.token }}">
+    <input type="hidden" name="upsert" value="{% if preview.upsert %}1{% else %}0{% endif %}">
+    {% for k, v in preview.mapping.items %}
+      <input type="hidden" name="mapping[{{k}}]" value="{{ v }}">
+    {% endfor %}
+    <div class="form-check">
+      <input class="form-check-input" type="checkbox" value="1" id="dry_run" name="dry_run">
+      <label class="form-check-label" for="dry_run">
+        Dry-run only (don't write to DB)
+      </label>
+    </div>
+    <button type="submit" class="btn btn-success">Commit Import</button>
+    <a href="{% url 'dashboard:product_upload' %}" class="btn btn-secondary">Start Over</a>
+  </form>
+
+  <p class="text-muted">
+  Allowed currencies: {{ preview.allowed_currencies|join:", " }} |
+  <a href="{% url 'dashboard:product_upload_errors_json' %}?token={{ preview.token }}&upsert={% if preview.upsert %}1{% else %}0{% endif %}" target="_blank" rel="noopener">Download errors JSON</a>
+</p>
+
+  <!-- Paging controls -->
+  <form method="get" action="{% url 'dashboard:product_upload_preview' %}" class="mb-2 d-flex gap-2 align-items-center">
+    <input type="hidden" name="token" value="{{ preview.token }}">
+    <input type="hidden" name="upsert" value="{% if preview.upsert %}1{% else %}0{% endif %}">
+    <label class="form-label m-0">Page</label>
+    <input type="number" class="form-control form-control-sm" name="page" value="{{ preview.page }}" min="1" max="{{ preview.total_pages }}" style="width: 6rem;">
+    <label class="form-label m-0">Per page</label>
+    <input type="number" class="form-control form-control-sm" name="per" value="{{ preview.per_page }}" min="50" max="2000" style="width: 7rem;">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Go</button>
+    <span class="text-muted">of {{ preview.total_pages }} pages</span>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-striped table-sm align-middle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Action</th>
+          <th>Title</th>
+          <th>SKU</th>
+          <th>Price</th>
+          <th>Brand</th>
+          <th>Category</th>
+          <th>Subcategory</th>
+          <th>Inventory</th>
+          <th>Errors</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in preview.rows %}
+          <tr class="
+            {% if r.action == 'error' %}table-danger
+            {% elif r.action == 'update' %}table-warning
+            {% elif r.action == 'skip' %}table-secondary
+            {% else %}table-success
+            {% endif %}
+          ">
+            <td>{{ forloop.counter0|add:preview.start_index }}</td>
+            <td>{{ r.action|title }}</td>
+            <td>{{ r.title }}</td>
+            <td><code>{{ r.sku }}</code></td>
+            <td>{{ r.price }} {{ r.currency }}</td>
+            <td>{{ r.brand }}</td>
+            <td>
+              {% if r.category_name %}
+                <a href="{{ admin_category_changelist }}?q={{ r.category_name|urlencode }}" target="_blank" rel="noopener">
+                  {{ r.category_name }}
+                </a>
+              {% else %}&mdash;{% endif %}
+            </td>
+            <td>
+              {% if r.subcategory_name %}
+                <a href="{{ admin_subcategory_changelist }}?q={{ r.subcategory_name|urlencode }}" target="_blank" rel="noopener">
+                  {{ r.subcategory_name }}
+                </a>
+              {% else %}&mdash;{% endif %}
+            </td>
+            <td>
+              {% if r.qty_available %}qty={{ r.qty_available }}{% endif %}
+              {% if r.safety_stock %} / safety={{ r.safety_stock }}{% endif %}
+              {% if r.warehouse %} / {{ r.warehouse }}{% endif %}
+              {% if r.stock_mode %} ({{ r.stock_mode }}){% endif %}
+              {% if not r.qty_available and not r.safety_stock and not r.warehouse %}&mdash;{% endif %}
+            </td>
+            <td>
+              {% if r.errors %}
+                <ul class="m-0">
+                  {% for e in r.errors %}<li>{{ e }}</li>{% endfor %}
+                </ul>
+              {% else %}&mdash;{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+{% endif %}
+{% endblock %}

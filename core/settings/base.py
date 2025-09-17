@@ -81,9 +81,9 @@ DATABASES = {
 # --- Auth ---
 AUTH_USER_MODEL = "accounts.User"
 
-LOGIN_URL = "/accounts/login/"
-LOGIN_REDIRECT_URL = "/dashboard/"
-LOGOUT_REDIRECT_URL = "/accounts/login/"
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "accounts:post_login_redirect"
+LOGOUT_REDIRECT_URL = "accounts:login"
 
 # --- Public signup toggle (ON for Phase 1) ---
 ALLOW_PUBLIC_SIGNUP = True
@@ -117,6 +117,10 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+TMP_IMPORT_DIR = BASE_DIR / "tmp_imports"
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2.5 * 1024 * 1024
 # --- Static & Media ---
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]  # for development

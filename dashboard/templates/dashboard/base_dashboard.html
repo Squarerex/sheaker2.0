@@ -1,45 +1,557 @@
-{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="{% static 'favicon.ico' %}">
-  <style>
-    body { font-family: system-ui, Segoe UI, Arial; display:flex; gap:16px; margin:0; }
-    aside { width:240px; border-right:1px solid #e5e7eb; padding:14px; }
-    main { flex:1; padding:16px; }
-    ul.msgs { list-style:none; padding:0; margin:0 0 12px 0; }
-    ul.menu { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Dashboard - E-commerce Platform{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            border-right: 1px solid rgba(255, 255, 255, 0.18);
+            overflow-y: auto;
+            transition: all 0.3s ease;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 30px 25px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .logout-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            background: #ef4444;
+            color: #fff;
+            box-shadow: 0 6px 20px rgba(239, 68, 68, .35);
+            transition: transform .2s ease, filter .2s ease;
+            font-size: 14px;
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-1px);
+            filter: brightness(1.05);
+        }
+
+        .nav-menu {
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 10px;
+        }
+
+        .nav-section-title {
+            padding: 10px 25px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #6b7280;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
+            padding: 12px 25px;
+            color: #374151;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .nav-item i {
+            width: 18px;
+            font-size: 16px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 30px;
+            overflow-y: auto;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .header-left h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+
+        .header-left p {
+            color: #6b7280;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notification-btn, .profile-btn {
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .notification-btn:hover, .profile-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: translateY(-2px);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Common Styles */
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            margin-bottom: 30px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #6b7280;
+        }
+
+        .loading i {
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: static;
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+
+            .dashboard-container {
+                flex-direction: column;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+        }
+
+        /* Hide sidebar on mobile by default */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                position: fixed;
+                z-index: 1001;
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .mobile-overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+
+            .mobile-overlay.active {
+                display: block;
+            }
+        }
+    </style>
 </head>
 <body>
-  <aside>
-    <h3>Menu</h3>
-    <ul class="menu">
-      <li><a href="{% url 'dashboard:home' %}">🏠 Overview</a></li>
-      {% if perms.catalog.view_product %}
-        <li><a href="{% url 'dashboard:product_list' %}">🗂 Products</a></li>
-      {% endif %}
-      {% if perms.catalog.add_product %}
-        <li><a href="{% url 'dashboard:product_create' %}">➕ New Product</a></li>
-      {% endif %}
-      <li>
-        <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
-          {% csrf_token %}
-          <button type="submit">Logout</button>
-        </form>
-      </li>
-      {% if user.is_staff %}<li><a href="/admin/">⚙️ Django Admin</a></li>{% endif %}
-    </ul>
-  </aside>
+    <div class="dashboard-container">
+        <!-- Mobile Overlay -->
+        <div class="mobile-overlay" id="mobile-overlay"></div>
+        
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-store"></i>
+                    E-Store Admin
+                </div>
+                <form method="post" action="{% url 'accounts:logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="logout-btn"><i class="fas fa-right-from-bracket"></i> Logout</button>
+                </form>
+            </div>
+            <div class="nav-menu">
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        <i class="fas fa-chart-line"></i>
+                        Dashboard Overview
+                    </a>
+                </div>
 
-  <main>
-    {% if messages %}
-      <ul class="msgs">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>
-    {% endif %}
-    {% block content %}{% endblock %}
-  </main>
+                <div class="nav-section">
+                    <div class="nav-section-title">Store Management</div>
+                    <a href="#" class="nav-item {% if 'products' in request.path %}active{% endif %}">
+                        <i class="fas fa-box"></i>
+                        Product Management
+                    </a>
+                    <a href="#" class="nav-item {% if 'orders' in request.path %}active{% endif %}">
+                        <i class="fas fa-shopping-cart"></i>
+                        Order Management
+                    </a>
+                    <a href="#" class="nav-item {% if 'customers' in request.path %}active{% endif %}">
+                        <i class="fas fa-users"></i>
+                        Customer Management
+                    </a>
+                    <a href="#" class="nav-item {% if 'inventory' in request.path %}active{% endif %}">
+                        <i class="fas fa-warehouse"></i>
+                        Inventory Management
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Analytics</div>
+                    <a href="#" class="nav-item {% if 'analytics' in request.path %}active{% endif %}">
+                        <i class="fas fa-chart-bar"></i>
+                        Reports & Analytics
+                    </a>
+                    <a href="#" class="nav-item {% if 'traffic' in request.path %}active{% endif %}">
+                        <i class="fas fa-eye"></i>
+                        Traffic Summary
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Financial</div>
+                    <a href="#" class="nav-item {% if 'payments' in request.path %}active{% endif %}">
+                        <i class="fas fa-credit-card"></i>
+                        Payment & Transactions
+                    </a>
+                    <a href="#" class="nav-item {% if 'promotions' in request.path %}active{% endif %}">
+                        <i class="fas fa-percentage"></i>
+                        Discounts & Promotions
+                    </a>
+                    <a href="#" class="nav-item {% if 'affiliates' in request.path %}active{% endif %}">
+                        <i class="fas fa-handshake"></i>
+                        Affiliate Management
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Operations</div>
+                    <a href="#" class="nav-item {% if 'shipping' in request.path %}active{% endif %}">
+                        <i class="fas fa-truck"></i>
+                        Shipping & Logistics
+                    </a>
+                    <a href="#" class="nav-item {% if 'returns' in request.path %}active{% endif %}">
+                        <i class="fas fa-undo"></i>
+                        Returns & Disputes
+                    </a>
+                    <a href="#" class="nav-item {% if 'multichannel' in request.path %}active{% endif %}">
+                        <i class="fas fa-globe"></i>
+                        Multi-Channel Management
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Content</div>
+                    <a href="#" class="nav-item {% if 'content' in request.path %}active{% endif %}">
+                        <i class="fas fa-edit"></i>
+                        Content Management
+                    </a>
+                    <a href="#" class="nav-item {% if 'communication' in request.path %}active{% endif %}">
+                        <i class="fas fa-comments"></i>
+                        Communication
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">System</div>
+                    <a href="#" class="nav-item {% if 'settings' in request.path %}active{% endif %}">
+                        <i class="fas fa-cog"></i>
+                        Settings & Configuration
+                    </a>
+                    <a href="#" class="nav-item {% if 'security' in request.path %}active{% endif %}">
+                        <i class="fas fa-shield-alt"></i>
+                        Security & Logs
+                    </a>
+                    <a href="#" class="nav-item {% if 'integrations' in request.path %}active{% endif %}">
+                        <i class="fas fa-puzzle-piece"></i>
+                        Integrations
+                    </a>
+                    <a href="#" class="nav-item {% if 'team' in request.path %}active{% endif %}">
+                        <i class="fas fa-user-tie"></i>
+                        Team & Roles
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dynamic Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1>{% block page_title %}Dashboard Overview{% endblock %}</h1>
+                    <p>{% block page_description %}Welcome back! Here's what's happening with your store today.{% endblock %}</p>
+                </div>
+                <div class="header-right">
+                    <!-- Mobile Menu Toggle -->
+                    <button class="btn btn-secondary mobile-menu-toggle" id="mobile-menu-toggle" style="display: none;">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    
+                    {% block header_actions %}
+                    <!-- Default header actions -->
+                    <button class="notification-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge">3</span>
+                    </button>
+                    <button class="profile-btn">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    {% endblock %}
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <div class="page-content">
+                {% block content %}
+                <!-- Default dashboard content will be here -->
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    Loading content...
+                </div>
+                {% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Base JavaScript -->
+    <script>
+        // Mobile menu functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileToggle = document.getElementById('mobile-menu-toggle');
+            const sidebar = document.getElementById('sidebar');
+            const mobileOverlay = document.getElementById('mobile-overlay');
+
+            // Show/hide mobile toggle based on screen size
+            function toggleMobileUI() {
+                if (window.innerWidth <= 768) {
+                    mobileToggle.style.display = 'inline-flex';
+                } else {
+                    mobileToggle.style.display = 'none';
+                    sidebar.classList.remove('active');
+                    mobileOverlay.classList.remove('active');
+                }
+            }
+
+            // Toggle mobile menu
+            if (mobileToggle) {
+                mobileToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('active');
+                    mobileOverlay.classList.toggle('active');
+                });
+            }
+
+            // Close mobile menu when overlay is clicked
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', function() {
+                    sidebar.classList.remove('active');
+                    mobileOverlay.classList.remove('active');
+                });
+            }
+
+            // Close mobile menu when nav item is clicked
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.remove('active');
+                        mobileOverlay.classList.remove('active');
+                    }
+                });
+            });
+
+            // Initial check and listen for resize
+            toggleMobileUI();
+            window.addEventListener('resize', toggleMobileUI);
+
+            // Notification animation
+            const notificationBtn = document.querySelector('.notification-btn');
+            if (notificationBtn) {
+                setInterval(() => {
+                    const badge = notificationBtn.querySelector('.notification-badge');
+                    if (badge) {
+                        badge.style.animation = 'pulse 2s infinite';
+                    }
+                }, 5000);
+
+                // Add pulse animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes pulse {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.1); }
+                        100% { transform: scale(1); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        });
+
+        {% block extra_js %}{% endblock %}
+    </script>
 </body>
 </html>

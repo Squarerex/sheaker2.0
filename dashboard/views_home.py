@@ -1,9 +1,8 @@
 # dashboard/views_home.py
 from __future__ import annotations
 
-from django.contrib.auth.views import redirect_to_login
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import render
 
 from catalog.models import (
     Inventory,
@@ -37,38 +36,38 @@ def _user_primary_role(request: HttpRequest) -> str | None:
             return role
 
     # Optional: treat staff without a group as editors
-    if user.is_staff:
-        return "editor"
+    # if user.is_staff:
+    #     return "editor"
 
-    return None
+    # return None
 
 
-def dashboard_home(request: HttpRequest) -> HttpResponse:
-    """
-    GET /dashboard/
-    - If not logged in → send to login
-    - If logged in → detect role and redirect to their dashboard URL
-    - If no role → show a neutral page explaining they need a role
-    """
-    if not request.user.is_authenticated:
-        return redirect_to_login(next=request.get_full_path())
+# def dashboard_home(request: HttpRequest) -> HttpResponse:
+#     """
+#     GET /dashboard/
+#     - If not logged in → send to login
+#     - If logged in → detect role and redirect to their dashboard URL
+#     - If no role → show a neutral page explaining they need a role
+#     """
+#     if not request.user.is_authenticated:
+#         return redirect_to_login(next=request.get_full_path())
 
-    role = _user_primary_role(request)
-    if role == "admin":
-        return redirect("dashboard:home_admin")
-    if role == "editor":
-        return redirect("dashboard:home_editor")
-    if role == "marketer":
-        return redirect("dashboard:home_marketer")
-    if role == "vendor":
-        return redirect("dashboard:home_vendor")
+#     role = _user_primary_role(request)
+#     if role == "admin":
+#         return redirect("dashboard:admin_dashboard")
+#     if role == "editor":
+#         return redirect("dashboard:editor_dashboard")
+#     if role == "marketer":
+#         return redirect("dashboard:marketer-dashboard")
+#     if role == "vendor":
+#         return redirect("dashboard:vendor_dashboard")
 
-    # No role assigned: show a neutral page
-    return render(request, "dashboard/home_neutral.html")
+#     if role == "customer":
+#         return redirect("dashboard:customer_dashboard")
 
 
 @role_required(["admin"])
-def home_admin(request: HttpRequest) -> HttpResponse:
+def admin_dashboard(request: HttpRequest) -> HttpResponse:
     """
     /dashboard/admin/ — visible to admin group (and superusers).
     Minimal stats to prove it's wired. Extend later with widgets.
@@ -82,11 +81,11 @@ def home_admin(request: HttpRequest) -> HttpResponse:
             "inventory": Inventory.objects.count(),
         },
     }
-    return render(request, "dashboard/home_admin.html", ctx)
+    return render(request, "dashboard/admin_dashboard.html", ctx)
 
 
 @role_required(["editor"])
-def home_editor(request: HttpRequest) -> HttpResponse:
+def editor_dashboard(request: HttpRequest) -> HttpResponse:
     """
     /dashboard/editor/ — visible to editor group.
     """
@@ -97,22 +96,32 @@ def home_editor(request: HttpRequest) -> HttpResponse:
             "variants": Variant.objects.count(),
         },
     }
-    return render(request, "dashboard/home_editor.html", ctx)
+    return render(request, "dashboard/editor_dashboard.html", ctx)
 
 
 @role_required(["marketer"])
-def home_marketer(request: HttpRequest) -> HttpResponse:
+def marketer_dashboard(request: HttpRequest) -> HttpResponse:
     """
     /dashboard/marketer/ — visible to marketer group.
     Keep Phase 1 simple; add KPIs later.
     """
-    return render(request, "dashboard/home_marketer.html", {"role": "marketer"})
+    return render(request, "dashboard/marketer_dashboard.html", {"role": "marketer"})
 
 
 @role_required(["vendor"])
-def home_vendor(request: HttpRequest) -> HttpResponse:
+def vendor_dashboard(request: HttpRequest) -> HttpResponse:
     """
     /dashboard/vendor/ — visible to vendor group.
     Phase 2 will scope to vendor-owned products.
     """
-    return render(request, "dashboard/home_vendor.html", {"role": "vendor"})
+    return render(request, "dashboard/vendor_dashboard.html", {"role": "vendor"})
+
+
+@role_required(["customer"])
+def customer_dashboard(request: HttpRequest) -> HttpResponse:
+    """
+    /dashboard/vendor/ — visible to customer group.
+    """
+    return render(
+        request, "dashboard/customers/customers_dashboard.html", {"role": "customer"}
+    )

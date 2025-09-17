@@ -1,15 +1,16 @@
 from django.contrib.auth import views as auth_views
 from django.urls import path, reverse_lazy
 
-from . import views  # your register/profile views
+from . import views
 
 app_name = "accounts"
 
 urlpatterns = [
-    # Login / logout
-    path("login/", auth_views.LoginView.as_view(), name="login"),
+    # Auth
+    path("login/", views.RoleLoginView.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
-    # Change password (logged-in)
+    path("post-login/", views.post_login_redirect, name="post_login_redirect"),
+    # Password change (logged-in)
     path(
         "password_change/",
         auth_views.PasswordChangeView.as_view(
@@ -22,14 +23,13 @@ urlpatterns = [
         auth_views.PasswordChangeDoneView.as_view(),
         name="password_change_done",
     ),
-    # Reset password (public flow)
+    # Password reset (public)
     path(
         "password_reset/",
         auth_views.PasswordResetView.as_view(
             success_url=reverse_lazy("accounts:password_reset_done"),
             email_template_name="registration/password_reset_email.html",
             subject_template_name="registration/password_reset_subject.txt",
-            # template_name="registration/password_reset_form.html",  # you can uncomment to use your form template
         ),
         name="password_reset",
     ),
@@ -50,7 +50,7 @@ urlpatterns = [
         auth_views.PasswordResetCompleteView.as_view(),
         name="password_reset_complete",
     ),
-    # Your custom views
+    # Custom
     path("register/", views.register, name="register"),
     path("profile/", views.profile, name="profile"),
 ]
