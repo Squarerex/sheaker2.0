@@ -1,0 +1,117 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% load static %}
+{% block content %}
+<h1>{% if mode == "create" %}New Product{% else %}Edit Product{% endif %}</h1>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <fieldset>
+    <legend>Product</legend>
+    {{ form.as_p }}
+  </fieldset>
+
+<fieldset>
+  <legend>Variants</legend>
+  {{ v_formset.management_form }}
+  <table border="1" cellpadding="6" cellspacing="0" width="100%">
+    <thead>
+      <tr>
+        {% for f in v_formset.empty_form.visible_fields %}
+          <th>{{ f.label }}</th>
+        {% endfor %}
+        <th>Delete?</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for form in v_formset.forms %}
+        <tr>
+          {% for field in form.visible_fields %}
+            <td>
+              {{ field.errors }}
+              {{ field }}
+            </td>
+          {% endfor %}
+          <td>{{ form.DELETE }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><em>Use the last empty row to add another variant.</em></p>
+</fieldset>
+
+<fieldset>
+  <legend>Media (product-level)</legend>
+  {{ m_formset.management_form }}
+  <table border="1" cellpadding="6" cellspacing="0" width="100%">
+    <thead>
+      <tr>
+        <th>Kind</th>
+        <th>Image</th>
+        <th>Video</th>
+        <th>External URL</th>
+        <th>Alt text</th>
+        <th>Main?</th>
+        <th>Order</th>
+        <th>Delete?</th>
+        <th>Preview</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for form in m_formset.forms %}
+        <tr>
+          <td>{{ form.kind }}</td>
+          <td>{{ form.image.errors }}{{ form.image }}</td>
+          <td>{{ form.video.errors }}{{ form.video }}</td>
+          <td>{{ form.url.errors }}{{ form.url }}</td>
+          <td>{{ form.alt }}</td>
+
+          {# enforce one main via JS (radio behavior) and server-side via formset.clean() #}
+          <td>
+            <input type="radio" name="__main_selector__"
+                   onclick="document.getElementById('{{ form.prefix }}-is_main').checked = true;">
+            {{ form.is_main }} {# actual boolean field kept hidden by CSS if you prefer #}
+          </td>
+
+          <td>{{ form.position }}</td>
+          <td>{{ form.DELETE }}</td>
+          <td>
+            {% if form.instance.pk %}
+              {% if form.instance.kind == 'image' and form.instance.image %}
+                <img src="{{ form.instance.image.url }}" style="max-height:60px" alt="">
+              {% elif form.instance.kind == 'video' and form.instance.video %}
+                <video src="{{ form.instance.video.url }}" style="max-height:60px" controls></video>
+              {% elif form.instance.kind == 'external' and form.instance.url %}
+                <a href="{{ form.instance.url }}" target="_blank">Open</a>
+              {% endif %}
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><em>Add multiple rows; check exactly one as “Main”.</em></p>
+</fieldset>
+
+<script>
+  // Optional: hide irrelevant inputs depending on selected "kind"
+  document.addEventListener('change', function (e) {
+    if (!e.target.closest('select[name$="-kind"]')) return;
+    const row = e.target.closest('tr');
+    const kind = e.target.value;
+    const show = (name) => row.querySelector(`[name$="-${name}"]`)?.closest('td')?.style = "display:table-cell";
+    const hide = (name) => row.querySelector(`[name$="-${name}"]`)?.closest('td')?.style = "display:none";
+
+    ["image","video","url"].forEach(hide);
+    if (kind === "image") show("image");
+    if (kind === "video") show("video");
+    if (kind === "external") show("url");
+  });
+
+  // Initialize visibility on load
+  document.querySelectorAll('select[name$="-kind"]').forEach(sel => sel.dispatchEvent(new Event('change')));
+</script>
+
+
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

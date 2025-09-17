@@ -1,0 +1,46 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block content %}
+<h1>Products</h1>
+
+<form method="get" class="mb-3" style="display:flex;gap:8px;flex-wrap:wrap">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search title or SKU" />
+  <input type="text" name="brand" value="{{ brand }}" placeholder="Brand" />
+  <input type="text" name="category" value="{{ category }}" placeholder="Category" />
+  <select name="active">
+    <option value="">Active (any)</option>
+    <option value="true" {% if active == "true" %}selected{% endif %}>Active</option>
+    <option value="false" {% if active == "false" %}selected{% endif %}>Inactive</option>
+  </select>
+  <button type="submit">Filter</button>
+ {% if perms.catalog.add_product %}
+    <a href="{% url 'dashboard:product_create' %}" style="margin-left:auto">+ New Product</a>
+  {% endif %}
+</form>
+
+<table border="1" cellpadding="6" cellspacing="0" width="100%">
+  <thead>
+    <tr>
+      <th>Title</th>
+      <th>Brand</th>
+      <th>Category</th>
+      <th>Active</th>
+      <th>Variants</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in products %}
+    <tr>
+      <td>{{ p.title }}</td>
+      <td>{{ p.brand }}</td>
+      <td>{{ p.category }}</td>
+      <td>{{ p.is_active|yesno:"Yes,No" }}</td>
+      <td>{{ p.variants.count }}</td>
+      <td><a href="{% url 'dashboard:product_edit' p.pk %}">Edit</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6">No products found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="{% static 'favicon.ico' %}">
+  <style>
+    body { font-family: system-ui, Segoe UI, Arial; display:flex; gap:16px; margin:0; }
+    aside { width:240px; border-right:1px solid #e5e7eb; padding:14px; }
+    main { flex:1; padding:16px; }
+    ul.msgs { list-style:none; padding:0; margin:0 0 12px 0; }
+    ul.menu { list-style:none; padding:0; margin:0; display:grid; gap:8px; }
+  </style>
+</head>
+<body>
+  <aside>
+    <h3>Menu</h3>
+    <ul class="menu">
+      <li><a href="{% url 'dashboard:home' %}">🏠 Overview</a></li>
+      {% if perms.catalog.view_product %}
+        <li><a href="{% url 'dashboard:product_list' %}">🗂 Products</a></li>
+      {% endif %}
+      {% if perms.catalog.add_product %}
+        <li><a href="{% url 'dashboard:product_create' %}">➕ New Product</a></li>
+      {% endif %}
+      <li>
+        <form method="post" action="{% url 'accounts:logout' %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit">Logout</button>
+        </form>
+      </li>
+      {% if user.is_staff %}<li><a href="/admin/">⚙️ Django Admin</a></li>{% endif %}
+    </ul>
+  </aside>
+
+  <main>
+    {% if messages %}
+      <ul class="msgs">{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

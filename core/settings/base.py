@@ -1,5 +1,8 @@
-from pathlib import Path
+from __future__ import annotations
+
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # project root
@@ -11,17 +14,16 @@ DEBUG = False  # overridden in dev.py
 
 AUTH_USER_MODEL = "accounts.User"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+ALLOWED_HOSTS = (
+    os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
+)
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
-    # your apps
     "accounts",
     "catalog",
     "orders",
@@ -30,6 +32,7 @@ INSTALLED_APPS = [
     "dashboard",
     "storefront",
     "shipping",
+    "django.contrib.admin",
 ]
 
 MIDDLEWARE = [
@@ -49,12 +52,14 @@ TEMPLATES = [
         "BACKEND": "django.template.backends.django.DjangoTemplates",
         "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
-        "OPTIONS": {"context_processors": [
-            "django.template.context_processors.debug",
-            "django.template.context_processors.request",
-            "django.contrib.auth.context_processors.auth",
-            "django.contrib.messages.context_processors.messages",
-        ]},
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
+        },
     }
 ]
 
@@ -76,10 +81,46 @@ DATABASES = {
 # --- Auth ---
 AUTH_USER_MODEL = "accounts.User"
 
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/dashboard/"
+LOGOUT_REDIRECT_URL = "/accounts/login/"
+
+# --- Public signup toggle (ON for Phase 1) ---
+ALLOW_PUBLIC_SIGNUP = True
+
+
+# --- Stronger password hashing (optional but recommended; pip install argon2-cffi) ---
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
+        "OPTIONS": {
+            "user_attributes": ("username", "email", "first_name", "last_name")
+        },
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    },
+    {
+        "NAME": "accounts.validators.MaximumLengthValidator",
+        "OPTIONS": {"max_length": 64},
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+
 # --- Static & Media ---
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]  # for development
-STATIC_ROOT = BASE_DIR / "staticfiles"   # for collectstatic (prod)
+STATIC_ROOT = BASE_DIR / "staticfiles"  # for collectstatic (prod)
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -96,3 +137,8 @@ CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_TIME_LIMIT = 30
 CELERY_TASK_SOFT_TIME_LIMIT = 20
+
+
+# Dev email (for password reset later, optional)
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "Sheaker <no-reply@sheaker.local>"
