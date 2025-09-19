@@ -45,9 +45,7 @@ def product_list(request: HttpRequest) -> HttpResponse:
       - page / page_size: pagination
     """
     qs = (
-        Product.objects.all()
-        .select_related("category", "subcategory")
-        .prefetch_related("variants")
+        Product.objects.all().select_related("category", "subcategory").prefetch_related("variants")
     )
 
     q = (request.GET.get("q") or "").strip()
@@ -106,9 +104,7 @@ def product_create(request: HttpRequest) -> HttpResponse:
     if request.method == "POST":
         form = ProductForm(request.POST, request.FILES, instance=product)
         v_formset = VariantFormSet(request.POST, instance=product, prefix="v")
-        m_formset = ProductMediaFormSet(
-            request.POST, request.FILES, instance=product, prefix="m"
-        )
+        m_formset = ProductMediaFormSet(request.POST, request.FILES, instance=product, prefix="m")
         if form.is_valid() and v_formset.is_valid() and m_formset.is_valid():
             form.save()
             v_formset.save()
@@ -139,9 +135,7 @@ def product_edit(request: HttpRequest, pk: int) -> HttpResponse:
     if request.method == "POST":
         form = ProductForm(request.POST, request.FILES, instance=product)
         v_formset = VariantFormSet(request.POST, instance=product, prefix="v")
-        m_formset = ProductMediaFormSet(
-            request.POST, request.FILES, instance=product, prefix="m"
-        )
+        m_formset = ProductMediaFormSet(request.POST, request.FILES, instance=product, prefix="m")
         if form.is_valid() and v_formset.is_valid() and m_formset.is_valid():
             form.save()
             v_formset.save()

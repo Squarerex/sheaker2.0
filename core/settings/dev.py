@@ -1,4 +1,6 @@
-from .base import *  # noqa
+from .base import *  # noqa: F401,F403
+
+# ruff: noqa: F405
 
 # --- Env flag (handy for sanity checks) ---
 ENV_NAME = "dev"

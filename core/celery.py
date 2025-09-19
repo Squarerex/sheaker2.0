@@ -24,3 +24,13 @@ app.conf.beat_schedule = {
         "args": ("cj",),
     },
 }
+
+app.conf.beat_schedule.update(
+    {
+        "cleanup-provider-dumps-daily": {
+            "task": "core.cleanup_provider_dumps",
+            "schedule": crontab(hour=3, minute=30),
+            "args": (2,),  # days
+        },
+    }
+)

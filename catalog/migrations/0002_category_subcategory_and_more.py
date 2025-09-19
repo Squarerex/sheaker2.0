@@ -148,9 +148,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="variant",
-            index=models.Index(
-                fields=["product", "sku"], name="catalog_var_product_852e8d_idx"
-            ),
+            index=models.Index(fields=["product", "sku"], name="catalog_var_product_852e8d_idx"),
         ),
         migrations.AddConstraint(
             model_name="media",
@@ -201,9 +199,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="product",
-            index=models.Index(
-                fields=["subcategory"], name="catalog_pro_subcate_c7c91a_idx"
-            ),
+            index=models.Index(fields=["subcategory"], name="catalog_pro_subcate_c7c91a_idx"),
         ),
         migrations.AlterUniqueTogether(
             name="subcategory",

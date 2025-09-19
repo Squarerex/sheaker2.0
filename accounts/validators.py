@@ -21,6 +21,6 @@ class MaximumLengthValidator:
             )
 
     def get_help_text(self):
-        return _(
-            "Your password must contain no more than %(max_length)d characters."
-        ) % {"max_length": self.max_length}
+        return _("Your password must contain no more than %(max_length)d characters.") % {
+            "max_length": self.max_length
+        }

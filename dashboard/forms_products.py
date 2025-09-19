@@ -60,9 +60,7 @@ class BaseProductMediaFormSet(BaseInlineFormSet):
             if form.cleaned_data.get("is_main"):
                 main_count += 1
         if main_count > 1:
-            raise ValidationError(
-                "Only one media item can be marked as main for this product."
-            )
+            raise ValidationError("Only one media item can be marked as main for this product.")
 
 
 # Factories you'll import in views
@@ -92,18 +90,16 @@ class ProductForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Only active categories/subcategories
-        self.fields["category"].queryset = Category.objects.filter(
-            is_active=True
-        ).order_by("name")
-        self.fields["subcategory"].queryset = Subcategory.objects.filter(
-            is_active=True
-        ).order_by("category__name", "name")
+        self.fields["category"].queryset = Category.objects.filter(is_active=True).order_by("name")
+        self.fields["subcategory"].queryset = Subcategory.objects.filter(is_active=True).order_by(
+            "category__name", "name"
+        )
         # If a category is selected, limit subcategories to that category
         cat = self.instance.category_id or self.data.get("category")
         if cat:
-            self.fields["subcategory"].queryset = self.fields[
-                "subcategory"
-            ].queryset.filter(category_id=cat)
+            self.fields["subcategory"].queryset = self.fields["subcategory"].queryset.filter(
+                category_id=cat
+            )
 
 
 ProductMediaFormSet = inlineformset_factory(

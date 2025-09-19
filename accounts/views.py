@@ -28,10 +28,7 @@ DASHBOARD_URLS = {
 
 def _primary_role(user) -> str | None:
     """Return the user's primary role, or None if they have none of the known groups."""
-    if (
-        getattr(user, "is_superuser", False)
-        or user.groups.filter(name="admin").exists()
-    ):
+    if getattr(user, "is_superuser", False) or user.groups.filter(name="admin").exists():
         return "admin"
     for r in ROLE_ORDER[1:]:
         if user.groups.filter(name=r).exists():
@@ -118,9 +115,7 @@ def register(request: HttpRequest) -> HttpResponse:
             user.save()  # if you have a signal attaching 'customer' group, it will run here
 
             raw_password = form.cleaned_data["password1"]
-            auth_user = authenticate(
-                request, username=user.username, password=raw_password
-            )
+            auth_user = authenticate(request, username=user.username, password=raw_password)
             if auth_user is not None:
                 login(request, auth_user)
 

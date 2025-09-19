@@ -125,6 +125,4 @@ def customer_dashboard(request: HttpRequest) -> HttpResponse:
     """
     /dashboard/customer/ — visible to customer group.
     """
-    return render(
-        request, "dashboard/customers/customers_dashboard.html", {"role": "customer"}
-    )
+    return render(request, "dashboard/customers/customers_dashboard.html", {"role": "customer"})

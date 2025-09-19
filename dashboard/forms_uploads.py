@@ -9,9 +9,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 
 # Temp dir (ensure it exists; add to .gitignore)
-TMP_DIR: Path = getattr(
-    settings, "TMP_IMPORT_DIR", Path(settings.BASE_DIR) / "tmp_imports"
-)
+TMP_DIR: Path = getattr(settings, "TMP_IMPORT_DIR", Path(settings.BASE_DIR) / "tmp_imports")
 ALLOWED_EXTS = {".json", ".csv"}
 
 

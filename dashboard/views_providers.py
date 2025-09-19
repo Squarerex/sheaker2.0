@@ -49,9 +49,7 @@ def providers_status(request):
         .values("pk")[:1]
     )
 
-    providers = ProviderAccount.objects.all().annotate(
-        latest_log_id=Subquery(latest_log_qs)
-    )
+    providers = ProviderAccount.objects.all().annotate(latest_log_id=Subquery(latest_log_qs))
 
     latest_logs = {
         log.pk: log
@@ -90,9 +88,7 @@ def provider_ping(request, code: str):
         account = ProviderAccount.objects.get(code=code)
         result = ping_provider(account)
         if result.get("ok"):
-            messages.success(
-                request, f"{code} ping OK (sample_found={result.get('sample_found')})"
-            )
+            messages.success(request, f"{code} ping OK (sample_found={result.get('sample_found')})")
         else:
             messages.error(request, f"{code} ping failed: {result.get('error')}")
     except Exception as e:
@@ -163,9 +159,7 @@ def providers_sync_form(request):
                     fetch_mode="per_detail",  # <- pass through; for safety you can force per_detail here if you want
                 )
                 mode_label = "DRY-RUN" if dry_run else "APPLIED"
-                messages.success(
-                    request, f"[{mode_label}] {account.code} sync complete: {result}"
-                )
+                messages.success(request, f"[{mode_label}] {account.code} sync complete: {result}")
                 return redirect(reverse("dashboard:providers_status"))
 
             except Exception as e:

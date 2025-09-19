@@ -94,9 +94,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 "indexes": [
-                    models.Index(
-                        fields=["variant"], name="providers_s_variant_7ea1c6_idx"
-                    ),
+                    models.Index(fields=["variant"], name="providers_s_variant_7ea1c6_idx"),
                     models.Index(
                         fields=["provider_account"],
                         name="providers_s_provide_ca8dfb_idx",

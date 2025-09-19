@@ -12,9 +12,7 @@ class Command(BaseCommand):
         parser.add_argument("--hours", type=int, default=24)
 
     def handle(self, *args, **opts):
-        root = Path(
-            getattr(settings, "TMP_IMPORT_DIR", Path(settings.BASE_DIR) / "tmp_imports")
-        )
+        root = Path(getattr(settings, "TMP_IMPORT_DIR", Path(settings.BASE_DIR) / "tmp_imports"))
         if not root.exists():
             self.stdout.write("No tmp_imports dir.")
             return

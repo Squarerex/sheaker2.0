@@ -55,9 +55,7 @@ class Migration(migrations.Migration):
                         fields=["provider_account", "-started_at"],
                         name="providers_p_provide_d63af6_idx",
                     ),
-                    models.Index(
-                        fields=["status"], name="providers_p_status_f73a70_idx"
-                    ),
+                    models.Index(fields=["status"], name="providers_p_status_f73a70_idx"),
                 ],
             },
         ),

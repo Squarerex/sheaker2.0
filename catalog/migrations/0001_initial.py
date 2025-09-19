@@ -27,9 +27,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        default=django.utils.timezone.now, editable=False
-                    ),
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
                 ),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("title", models.CharField(max_length=255)),
@@ -46,13 +44,9 @@ class Migration(migrations.Migration):
                 "ordering": ["-created_at"],
                 "indexes": [
                     models.Index(fields=["slug"], name="catalog_pro_slug_2b1eb6_idx"),
-                    models.Index(
-                        fields=["is_active"], name="catalog_pro_is_acti_14fc6b_idx"
-                    ),
+                    models.Index(fields=["is_active"], name="catalog_pro_is_acti_14fc6b_idx"),
                     models.Index(fields=["brand"], name="catalog_pro_brand_f6911e_idx"),
-                    models.Index(
-                        fields=["category"], name="catalog_pro_categor_50f92a_idx"
-                    ),
+                    models.Index(fields=["category"], name="catalog_pro_categor_50f92a_idx"),
                 ],
             },
         ),
@@ -70,18 +64,14 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        default=django.utils.timezone.now, editable=False
-                    ),
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
                 ),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("sku", models.CharField(db_index=True, max_length=64, unique=True)),
                 ("attributes", models.JSONField(blank=True, default=dict)),
                 (
                     "price_base",
-                    models.DecimalField(
-                        decimal_places=2, default=Decimal("0.00"), max_digits=12
-                    ),
+                    models.DecimalField(decimal_places=2, default=Decimal("0.00"), max_digits=12),
                 ),
                 (
                     "currency",
@@ -98,9 +88,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "weight_kg",
-                    models.DecimalField(
-                        blank=True, decimal_places=3, max_digits=8, null=True
-                    ),
+                    models.DecimalField(blank=True, decimal_places=3, max_digits=8, null=True),
                 ),
                 ("dims", models.JSONField(blank=True, default=dict)),
                 ("is_active", models.BooleanField(default=True)),
@@ -131,9 +119,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        default=django.utils.timezone.now, editable=False
-                    ),
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
                 ),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (
@@ -196,9 +182,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        default=django.utils.timezone.now, editable=False
-                    ),
+                    models.DateTimeField(default=django.utils.timezone.now, editable=False),
                 ),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("qty_available", models.PositiveIntegerField(default=0)),
@@ -223,9 +207,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="variant",
-            index=models.Index(
-                fields=["is_active"], name="catalog_var_is_acti_aad294_idx"
-            ),
+            index=models.Index(fields=["is_active"], name="catalog_var_is_acti_aad294_idx"),
         ),
         migrations.AddConstraint(
             model_name="media",

@@ -15,8 +15,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="variant",
-            index=models.Index(
-                fields=["currency"], name="catalog_var_currenc_284ed4_idx"
-            ),
+            index=models.Index(fields=["currency"], name="catalog_var_currenc_284ed4_idx"),
         ),
     ]

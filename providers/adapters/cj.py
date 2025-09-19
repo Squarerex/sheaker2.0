@@ -9,6 +9,12 @@ from typing import Any, Callable, Dict, Generator, Mapping, Optional
 
 import requests
 
+try:
+    from django.core.cache import cache
+except Exception:
+    cache = None
+
+
 # -----------------------------
 # Public fetch modes (used by UI / services)
 # -----------------------------
@@ -98,8 +104,7 @@ class CJAdapter:
     # ---------- basic config ----------
     def _base(self) -> str:
         return (
-            self.credentials.get("api_base")
-            or "https://developers.cjdropshipping.com/api2.0/v1"
+            self.credentials.get("api_base") or "https://developers.cjdropshipping.com/api2.0/v1"
         ).rstrip("/")
 
     def _headers(self) -> Dict[str, str]:
@@ -116,6 +121,10 @@ class CJAdapter:
         return h
 
     # ---------- pacing & counters ----------
+    def _cache_key(self) -> str:
+        email = (self.credentials.get("email") or "").lower()
+        return f"cj:reqcount:{self._req_date}:{email}"
+
     def _check_reset_counter(self):
         today = _today_str()
         if today != self._req_date:
@@ -124,10 +133,17 @@ class CJAdapter:
 
     def _budget(self, cost: int = 1):
         self._check_reset_counter()
-        if self._req_count + cost > self._daily_cap:
-            raise RateLimitedError(f"Internal daily cap reached ({self._daily_cap})")
-        # reserve now (safer with concurrency)
-        self._req_count += cost
+        if cache:
+            key = self._cache_key()
+            cache.add(key, 0, timeout=86400)  # create if missing
+            new_val = cache.incr(key, cost)
+            if new_val > self._daily_cap:
+                raise RateLimitedError(f"Internal daily cap reached ({self._daily_cap})")
+            self._req_count = new_val
+        else:
+            if self._req_count + cost > self._daily_cap:
+                raise RateLimitedError(f"Internal daily cap reached ({self._daily_cap})")
+            self._req_count += cost
 
     def _maybe_sleep(self):
         if self._min_interval_s <= 0:
@@ -152,9 +168,7 @@ class CJAdapter:
             self._budget(1)
             self._maybe_sleep()
             try:
-                resp = requests.get(
-                    url, headers=headers, params=params, timeout=self._timeout
-                )
+                resp = requests.get(url, headers=headers, params=params, timeout=self._timeout)
                 self._last_request_ts = time.time()
                 if _is_rate_limited(resp):
                     raise RateLimitedError("Provider rate limit reached")
@@ -190,9 +204,7 @@ class CJAdapter:
             self._budget(1)
             self._maybe_sleep()
             try:
-                resp = requests.post(
-                    url, headers=headers, json=json_body, timeout=self._timeout
-                )
+                resp = requests.post(url, headers=headers, json=json_body, timeout=self._timeout)
                 self._last_request_ts = time.time()
                 if _is_rate_limited(resp):
                     raise RateLimitedError("Provider rate limit reached")
@@ -219,8 +231,7 @@ class CJAdapter:
             return
         # else, try refresh; if not possible → login
         if self._refresh_token and (
-            self._refresh_expiry is None
-            or self._refresh_expiry > datetime.now(timezone.utc)
+            self._refresh_expiry is None or self._refresh_expiry > datetime.now(timezone.utc)
         ):
             ok = self._refresh()
             if ok:
@@ -235,9 +246,7 @@ class CJAdapter:
         password = self.credentials.get("password")
 
         if not email or not (api_key or password):
-            raise CJAuthError(
-                "Missing CJ credentials: email + (api_key or password) required"
-            )
+            raise CJAuthError("Missing CJ credentials: email + (api_key or password) required")
 
         payload = {"email": email}
         # prefer API key if provided; some tenants require password
@@ -262,18 +271,14 @@ class CJAdapter:
         body = resp.json() or {}
         # normalize common response shapes
         data = body.get("data") or body.get("result") or body
-        access = (
-            data.get("accessToken") or data.get("token") or data.get("access_token")
-        )
+        access = data.get("accessToken") or data.get("token") or data.get("access_token")
         refresh = data.get("refreshToken") or data.get("refresh_token")
 
         if not access:
             raise CJAuthError(f"Login failed: {body}")
 
         # expiry (if provided)
-        access_exp = _parse_expiry(
-            data.get("expiresIn") or data.get("accessTokenExpiresIn")
-        )
+        access_exp = _parse_expiry(data.get("expiresIn") or data.get("accessTokenExpiresIn"))
         refresh_exp = _parse_expiry(data.get("refreshTokenExpiresIn"))
 
         self._assign_tokens(access, refresh, access_exp, refresh_exp)
@@ -281,9 +286,7 @@ class CJAdapter:
     def _refresh(self) -> bool:
         if not self._refresh_token:
             return False
-        path = self.credentials.get(
-            "auth_refresh", "/authentication/refreshAccessToken"
-        )
+        path = self.credentials.get("auth_refresh", "/authentication/refreshAccessToken")
         url = f"{self._base()}{path}"
         try:
             resp = self._http_post(
@@ -300,21 +303,13 @@ class CJAdapter:
 
         body = resp.json() or {}
         data = body.get("data") or body.get("result") or body
-        access = (
-            data.get("accessToken") or data.get("token") or data.get("access_token")
-        )
-        refresh = (
-            data.get("refreshToken") or data.get("refresh_token") or self._refresh_token
-        )
+        access = data.get("accessToken") or data.get("token") or data.get("access_token")
+        refresh = data.get("refreshToken") or data.get("refresh_token") or self._refresh_token
         if not access:
             return False
 
-        access_exp = _parse_expiry(
-            data.get("expiresIn") or data.get("accessTokenExpiresIn")
-        )
-        refresh_exp = (
-            _parse_expiry(data.get("refreshTokenExpiresIn")) or self._refresh_expiry
-        )
+        access_exp = _parse_expiry(data.get("expiresIn") or data.get("accessTokenExpiresIn"))
+        refresh_exp = _parse_expiry(data.get("refreshTokenExpiresIn")) or self._refresh_expiry
         self._assign_tokens(access, refresh, access_exp, refresh_exp)
         return True
 
@@ -397,10 +392,7 @@ class CJAdapter:
                         )
                         d_body = d_resp.json() or {}
                         details = (
-                            d_body.get("data")
-                            or d_body.get("result")
-                            or d_body.get("list")
-                            or []
+                            d_body.get("data") or d_body.get("result") or d_body.get("list") or []
                         )
                         if isinstance(details, dict):
                             details = details.get("list") or []
@@ -471,17 +463,13 @@ class CJAdapter:
         external_id = str(raw.get("pid") or "")
         title = raw.get("productNameEn")
         if not title:
-            name_set = _as_list(raw.get("productNameSet")) or _json_list(
-                raw.get("productName")
-            )
+            name_set = _as_list(raw.get("productNameSet")) or _json_list(raw.get("productName"))
             title = name_set[0] if name_set else "Untitled"
 
         description_html = raw.get("description") or ""
         category_id = str(raw.get("categoryId") or "").strip()
         category_path = raw.get("categoryName") or ""
-        cat_root, cat_leaf, cat_parts, cat_breadcrumb = _split_category_path(
-            category_path
-        )
+        cat_root, cat_leaf, cat_parts, cat_breadcrumb = _split_category_path(category_path)
 
         # --- Images ---
         images = _as_list(raw.get("productImageSet"))
@@ -598,9 +586,7 @@ def _decorate_http_error(e: Exception, resp: Optional[requests.Response]) -> Exc
         payload = resp.json()
     except Exception:
         payload = resp.text
-    return requests.HTTPError(
-        f"{resp.status_code} {resp.reason} :: {payload}", response=resp
-    )
+    return requests.HTTPError(f"{resp.status_code} {resp.reason} :: {payload}", response=resp)
 
 
 def _to_float(x, default: float = 0.0) -> float:

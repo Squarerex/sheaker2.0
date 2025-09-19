@@ -54,9 +54,7 @@ urlpatterns = [
     ),
     path("tools/cj-extract/", cj_minimal_extract, name="cj_minimal_extract"),
     # Providers: status, ping, sync now, targeted sync form
-    path(
-        "providers/status/", views_providers.providers_status, name="providers_status"
-    ),
+    path("providers/status/", views_providers.providers_status, name="providers_status"),
     path(
         "providers/<slug:code>/ping/",
         views_providers.provider_ping,

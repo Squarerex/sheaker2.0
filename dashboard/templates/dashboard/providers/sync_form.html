@@ -53,4 +53,30 @@
     <a class="button" href="{% url 'dashboard:providers_status' %}">Back to status</a>
   </div>
 </form>
+<!-- place this below your form fields (before the submit-row is fine) -->
+<div id="api-estimate" class="help" style="margin:10px 0; font-style:italic;"></div>
+<script>
+(function(){
+  function gi(id, d){ return document.getElementById(id) || { value: d }; }
+  function valInt(id, d){ const v = parseInt(gi(id, d).value, 10); return isNaN(v) ? d : v; }
+  function update(){
+    const detail = gi("id_detail", "per_detail").value;
+    const P = valInt("id_page_size", 50);
+    const M = valInt("id_max_pages", 1);
+    const L = Math.min(valInt("id_limit", P*M) || (P*M), P*M);
+    const B = Math.max(valInt("id_bulk_size", 50), 1);
+    let est = 1 + M; // ≈ auth + list pages
+    if (detail === "bulk_detail") est += Math.ceil(L / B);
+    else if (detail === "per_detail") est += L;
+    gi("api-estimate").textContent = "Estimated API calls for this run: ~" + est;
+  }
+  ["change","keyup"].forEach(evt=>{
+    ["id_detail","id_page_size","id_max_pages","id_limit","id_bulk_size"].forEach(id=>{
+      const el = document.getElementById(id); if (el) el.addEventListener(evt, update);
+    });
+  });
+  update();
+})();
+</script>
+
 {% endblock %}

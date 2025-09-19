@@ -59,18 +59,14 @@ def create_groups(apps, schema_editor):
 
     # customer: catalog read-only (optional)
     customer = set(
-        perms_for(Product, ["view"])
-        + perms_for(Variant, ["view"])
-        + perms_for(Media, ["view"])
+        perms_for(Product, ["view"]) + perms_for(Variant, ["view"]) + perms_for(Media, ["view"])
     )
     groups["customer"].permissions.add(*customer)
 
 
 def drop_groups(apps, schema_editor):
     Group = apps.get_model("auth", "Group")
-    Group.objects.filter(
-        name__in=["admin", "editor", "marketer", "vendor", "customer"]
-    ).delete()
+    Group.objects.filter(name__in=["admin", "editor", "marketer", "vendor", "customer"]).delete()
 
 
 class Migration(migrations.Migration):

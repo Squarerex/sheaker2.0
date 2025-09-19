@@ -24,9 +24,7 @@ def sync_selected_providers(modeladmin, request, queryset):
             messages.warning(request, f"Skipped {account.code}: inactive")
             continue
         try:
-            result = sync_provider_products(
-                provider_code=account.code, max_pages=1, page_size=50
-            )
+            result = sync_provider_products(provider_code=account.code, max_pages=1, page_size=50)
             messages.success(request, f"{account.code} synced: {result}")
             total += 1
         except Exception as e:
@@ -46,9 +44,7 @@ def test_selected_providers(modeladmin, request, queryset):
                     f"{account.code} ping OK (sample_found={result.get('sample_found')})",
                 )
             else:
-                messages.error(
-                    request, f"{account.code} ping failed: {result.get('error')}"
-                )
+                messages.error(request, f"{account.code} ping failed: {result.get('error')}")
         except Exception as e:
             messages.error(request, f"{account.code} ping exception: {e}")
 

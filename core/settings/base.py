@@ -3,10 +3,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # project root
-load_dotenv(BASE_DIR / ".env")
+
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:  # ImportError on mypy's venv, or any edge case
+    load_dotenv = None  # type: ignore
+
+if load_dotenv:
+    load_dotenv(BASE_DIR / ".env")
+
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-in-prod")
 
@@ -14,9 +20,7 @@ DEBUG = True  # overridden in dev.py
 
 AUTH_USER_MODEL = "accounts.User"
 
-ALLOWED_HOSTS = (
-    os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
-)
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",") if os.getenv("ALLOWED_HOSTS") else []
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -100,9 +104,7 @@ PASSWORD_HASHERS = [
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-        "OPTIONS": {
-            "user_attributes": ("username", "email", "first_name", "last_name")
-        },
+        "OPTIONS": {"user_attributes": ("username", "email", "first_name", "last_name")},
     },
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",

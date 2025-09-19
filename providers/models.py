@@ -11,13 +11,9 @@ class ProviderAccount(models.Model):
     `credentials_json` can store API keys, tokens, etc. (encrypted at rest if you use a secrets backend).
     """
 
-    code = models.SlugField(
-        max_length=50, unique=True, help_text="Short code, e.g., 'cj'"
-    )
+    code = models.SlugField(max_length=50, unique=True, help_text="Short code, e.g., 'cj'")
     name = models.CharField(max_length=100)
-    priority = models.PositiveIntegerField(
-        default=100, help_text="Lower number = higher priority"
-    )
+    priority = models.PositiveIntegerField(default=100, help_text="Lower number = higher priority")
     credentials_json = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
 

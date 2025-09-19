@@ -10,9 +10,7 @@ class User(AbstractUser):
         VENDOR = "vendor", "Vendor"
         CUSTOMER = "customer", "Customer"
 
-    user_type = models.CharField(
-        max_length=20, choices=UserType.choices, default=UserType.CUSTOMER
-    )
+    user_type = models.CharField(max_length=20, choices=UserType.choices, default=UserType.CUSTOMER)
     phone = models.CharField(max_length=32, blank=True)  # <-- ADD THIS
 
     def has_role(self, *roles: str) -> bool:

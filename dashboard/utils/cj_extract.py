@@ -30,9 +30,7 @@ def _parse_axes(s: str | None) -> List[str]:
     return [a.strip() for a in s.split("-") if a.strip()]
 
 
-def _split_variant_key(
-    variant_key: str | None, axes: List[str]
-) -> Dict[str, str] | Dict[str, str]:
+def _split_variant_key(variant_key: str | None, axes: List[str]) -> Dict[str, str] | Dict[str, str]:
     """
     Map variantKey onto axes in order.
     If mismatch (counts differ), keep raw string for debugging.

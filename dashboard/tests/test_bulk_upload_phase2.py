@@ -36,9 +36,7 @@ class BulkUploadPhase2Tests(TestCase):
     def _post_upload(self, payload, *, is_json=True, update_existing=True):
         if is_json:
             content = json.dumps(payload).encode("utf-8")
-            f = SimpleUploadedFile(
-                "upload.json", content, content_type="application/json"
-            )
+            f = SimpleUploadedFile("upload.json", content, content_type="application/json")
         else:
             content = payload.encode("utf-8")
             f = SimpleUploadedFile("upload.csv", content, content_type="text/csv")
@@ -171,9 +169,7 @@ class BulkUploadPhase2Tests(TestCase):
 
     def test_pagination(self):
         self.login_user_with_roles("admin1", ["admin"])
-        big = [
-            {"title": f"P{i}", "sku": f"SKU{i}", "price": "9.99"} for i in range(1200)
-        ]
+        big = [{"title": f"P{i}", "sku": f"SKU{i}", "price": "9.99"} for i in range(1200)]
         loc = self._post_upload(big, is_json=True)
         r = self.client.get(loc + "&page=3&per=500")
         self.assertEqual(r.status_code, 200)

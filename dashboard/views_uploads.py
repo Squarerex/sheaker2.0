@@ -77,9 +77,7 @@ def product_upload(request: HttpRequest) -> HttpResponse:
 @role_required(["admin", "editor", "marketer"])
 def product_upload_preview(request: HttpRequest) -> HttpResponse:
     token = request.GET.get("token") or request.POST.get("token")
-    upsert_flag = (
-        request.GET.get("upsert") or request.POST.get("upsert") or "1"
-    ) == "1"
+    upsert_flag = (request.GET.get("upsert") or request.POST.get("upsert") or "1") == "1"
     if not token:
         return HttpResponseBadRequest("Missing token.")
 
@@ -219,9 +217,7 @@ def _looks_like_color(tok: str) -> bool:
     return any(w in t for w in _COLOR_WORDS)
 
 
-def _parse_color_size_from_variant_key(
-    variant_key: str, axes: list[str] | None
-) -> dict:
+def _parse_color_size_from_variant_key(variant_key: str, axes: list[str] | None) -> dict:
     """
     Given CJ 'variantKey' and optional axis names, derive color/size.
     """
@@ -350,11 +346,7 @@ def _maybe_transform_cj_minimal_to_normalized(path: _Path) -> _Path:
                     if "color" in lk and val and "color" not in attrs_from_key:
                         attrs_from_key["color"] = val
                     if (
-                        (
-                            lk == "size"
-                            or lk in _AXIS_ALIASES
-                            and _AXIS_ALIASES[lk] == "size"
-                        )
+                        (lk == "size" or lk in _AXIS_ALIASES and _AXIS_ALIASES[lk] == "size")
                         and val
                         and "size" not in attrs_from_key
                     ):
@@ -374,9 +366,7 @@ def _maybe_transform_cj_minimal_to_normalized(path: _Path) -> _Path:
                     "price": str(price) if price is not None else "",
                     "currency": "USD",
                     "weight": weight or "",
-                    "dims": (
-                        dims if isinstance(dims, dict) and any(dims.values()) else {}
-                    ),
+                    "dims": (dims if isinstance(dims, dict) and any(dims.values()) else {}),
                     "media_urls": [vimg] if vimg else images,
                     # NEW: CJ identifiers & attributes for importer
                     "vid": v.get("vid"),
@@ -451,9 +441,7 @@ def product_upload_commit(request: HttpRequest) -> HttpResponse:
         f"Inventory set {results['inventory_set']} / incremented {results['inventory_incremented']}."
     )
     if results["errors"]:
-        messages.warning(
-            request, f"{msg} Completed with {len(results['errors'])} warnings."
-        )
+        messages.warning(request, f"{msg} Completed with {len(results['errors'])} warnings.")
     else:
         messages.success(request, msg)
 
@@ -469,9 +457,7 @@ def product_upload_commit(request: HttpRequest) -> HttpResponse:
 
 def _can_commit(user):
     # Only admins/editors can commit
-    return (
-        user.is_superuser or user.groups.filter(name__in=["admin", "editor"]).exists()
-    )
+    return user.is_superuser or user.groups.filter(name__in=["admin", "editor"]).exists()
 
 
 # -------- Sample files for users --------
@@ -580,16 +566,12 @@ def cj_minimal_extract(request: HttpRequest) -> HttpResponse:
             buf.getvalue().encode("utf-8-sig"),
             content_type="text/csv; charset=utf-8",
         )
-        response["Content-Disposition"] = (
-            f'attachment; filename="{smart_str(filename)}"'
-        )
+        response["Content-Disposition"] = f'attachment; filename="{smart_str(filename)}"'
         return response
 
     # default JSON
     content = json.dumps(minimal, ensure_ascii=False, indent=2)
     filename = f"cj_minimal_products_{now_stamp}.json"
-    response = HttpResponse(
-        content.encode("utf-8"), content_type="application/json; charset=utf-8"
-    )
+    response = HttpResponse(content.encode("utf-8"), content_type="application/json; charset=utf-8")
     response["Content-Disposition"] = f'attachment; filename="{smart_str(filename)}"'
     return response

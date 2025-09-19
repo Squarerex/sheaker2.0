@@ -44,12 +44,8 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ["-created_at"],
                 "indexes": [
-                    models.Index(
-                        fields=["created_at"], name="dashboard_i_created_649aa3_idx"
-                    ),
-                    models.Index(
-                        fields=["filename"], name="dashboard_i_filenam_6341ce_idx"
-                    ),
+                    models.Index(fields=["created_at"], name="dashboard_i_created_649aa3_idx"),
+                    models.Index(fields=["filename"], name="dashboard_i_filenam_6341ce_idx"),
                 ],
             },
         ),

@@ -26,9 +26,7 @@ def _summarize(detail: Mapping[str, Any]) -> Dict[str, Any]:
     # CJ often sends a breadcrumb-like string such as "Jewelry & Watches > Fashion Jewelry"
     cat_path = detail.get("categoryName") or ""
     variants = detail.get("variants") or []
-    skus = [
-        str(v.get("variantSku") or "").strip() for v in variants if v.get("variantSku")
-    ]
+    skus = [str(v.get("variantSku") or "").strip() for v in variants if v.get("variantSku")]
     prices = [_to_float(v.get("variantSellPrice")) for v in variants]
     prices = [p for p in prices if p is not None]
     price_min = min(prices) if prices else None
@@ -59,15 +57,11 @@ class Command(BaseCommand):
             default=1,
             help="How many list pages to walk (default 1)",
         )
-        parser.add_argument(
-            "--page-size", type=int, default=20, help="Items per page (<=200)"
-        )
+        parser.add_argument("--page-size", type=int, default=20, help="Items per page (<=200)")
         parser.add_argument(
             "--limit", type=int, default=None, help="Hard cap on # of detailed products"
         )
-        parser.add_argument(
-            "--keyword", default=None, help="CJ /product/list ?keyword="
-        )
+        parser.add_argument("--keyword", default=None, help="CJ /product/list ?keyword=")
         parser.add_argument(
             "--category-id",
             dest="category_id",
@@ -80,9 +74,7 @@ class Command(BaseCommand):
         try:
             account = ProviderAccount.objects.get(code=opts["code"], is_active=True)
         except ProviderAccount.DoesNotExist as e:
-            raise CommandError(
-                f"Provider '{opts['code']}' not found or inactive"
-            ) from e
+            raise CommandError(f"Provider '{opts['code']}' not found or inactive") from e
 
         # Persist refreshed tokens back to credentials_json
         def _save_tokens(access, refresh, access_expiry, refresh_expiry):
@@ -98,9 +90,7 @@ class Command(BaseCommand):
             account.credentials_json = creds
             account.save(update_fields=["credentials_json"])
 
-        adapter = CJAdapter(
-            credentials=account.credentials_json, save_tokens=_save_tokens
-        )
+        adapter = CJAdapter(credentials=account.credentials_json, save_tokens=_save_tokens)
 
         # Output directories
         ts = timezone.now().strftime("%Y%m%d-%H%M%S")

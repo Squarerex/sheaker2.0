@@ -47,9 +47,7 @@ class Category(models.Model):
 
 
 class Subcategory(models.Model):
-    category = models.ForeignKey(
-        Category, on_delete=models.CASCADE, related_name="subcategories"
-    )
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="subcategories")
     name = models.CharField(max_length=120)
     slug = models.SlugField(max_length=140, blank=True)
     is_active = models.BooleanField(default=True)
@@ -107,11 +105,7 @@ class Product(TimeStampedModel):
 
     def clean(self):
         super().clean()
-        if (
-            self.subcategory
-            and self.category
-            and self.subcategory.category_id != self.category_id
-        ):
+        if self.subcategory and self.category and self.subcategory.category_id != self.category_id:
             raise ValidationError(
                 {"subcategory": "Subcategory must belong to the selected Category."}
             )
@@ -140,21 +134,15 @@ class Product(TimeStampedModel):
         pm = self.primary_media
         if pm and pm.kind == Media.KIND_IMAGE:
             return pm
-        return (
-            self.media.filter(kind=Media.KIND_IMAGE).order_by("position", "id").first()
-        )
+        return self.media.filter(kind=Media.KIND_IMAGE).order_by("position", "id").first()
 
 
 class Variant(TimeStampedModel):
-    product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="variants"
-    )
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     sku = models.CharField(max_length=64, unique=True, db_index=True)
     attributes: Dict[str, Any] = models.JSONField(default=dict, blank=True)
 
-    price_base = models.DecimalField(
-        max_digits=12, decimal_places=2, default=Decimal("0.00")
-    )
+    price_base = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default="USD")
 
     # Use 'weight' to match dashboard forms (kilograms recommended)
@@ -178,9 +166,7 @@ class Variant(TimeStampedModel):
 
 
 class Inventory(TimeStampedModel):
-    variant = models.OneToOneField(
-        Variant, on_delete=models.CASCADE, related_name="inventory"
-    )
+    variant = models.OneToOneField(Variant, on_delete=models.CASCADE, related_name="inventory")
     qty_available = models.PositiveIntegerField(default=0)
     safety_stock = models.PositiveIntegerField(default=0)
     warehouse = models.CharField(max_length=100, null=True, blank=True)
@@ -252,15 +238,11 @@ class Media(models.Model):
 
         # You must attach to product-level OR variant-level gallery.
         if not self.product and not self.variant:
-            raise ValidationError(
-                {"product": "Attach media to a product or to a variant."}
-            )
+            raise ValidationError({"product": "Attach media to a product or to a variant."})
 
         # If both are set, they must be consistent.
         if self.product and self.variant and self.variant.product_id != self.product_id:
-            raise ValidationError(
-                {"product": "Product must match the variant's product."}
-            )
+            raise ValidationError({"product": "Product must match the variant's product."})
 
         # Kind ↔ content presence
         if self.kind == self.KIND_IMAGE and not self.image:

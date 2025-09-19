@@ -20,9 +20,7 @@ from catalog.models import (
 )
 
 REQUIRED_FIELDS = ("title", "sku", "price")
-VALID_CURRENCIES = {
-    c[0].upper() for c in CURRENCY_CHOICES
-}  # e.g. {"USD","EUR","GBP","NGN"}
+VALID_CURRENCIES = {c[0].upper() for c in CURRENCY_CHOICES}  # e.g. {"USD","EUR","GBP","NGN"}
 
 # Which normalized keys we accept (used by column-mapping UI)
 NORMALIZED_FIELDS = [
@@ -66,9 +64,7 @@ def _load_rows_and_headers(path: Path) -> Tuple[List[Dict[str, Any]], List[str]]
             data = data["items"]
         if not isinstance(data, list):
             raise ValueError("JSON must be a list or {'items': [...]} format.")
-        headers = sorted(
-            {k for row in data if isinstance(row, dict) for k in row.keys()}
-        )
+        headers = sorted({k for row in data if isinstance(row, dict) for k in row.keys()})
         return data, headers
 
     if _ext(path) == ".csv":
@@ -112,9 +108,7 @@ def _normalize_row(raw_in: Dict[str, Any]) -> Dict[str, Any]:
     brand = str(raw.get("brand") or "").strip()
 
     category_name = (raw.get("category_name") or raw.get("category") or "").strip()
-    subcategory_name = (
-        raw.get("subcategory_name") or raw.get("subcategory") or ""
-    ).strip()
+    subcategory_name = (raw.get("subcategory_name") or raw.get("subcategory") or "").strip()
 
     sku = str(raw.get("sku") or raw.get("SKU") or "").strip()
     price = raw.get("price") or raw.get("price_base") or raw.get("amount")
@@ -129,9 +123,7 @@ def _normalize_row(raw_in: Dict[str, Any]) -> Dict[str, Any]:
     product_productSku = str(raw.get("product_productSku") or "").strip()
 
     # CJ-derived additions
-    attributes = (
-        raw.get("attributes") or {}
-    )  # dict with standardized fields like color/size
+    attributes = raw.get("attributes") or {}  # dict with standardized fields like color/size
     vid = raw.get("vid")  # optional CJ variant id
     variant_key = raw.get("variant_key")  # the raw variantKey string (for debugging)
 
@@ -139,9 +131,7 @@ def _normalize_row(raw_in: Dict[str, Any]) -> Dict[str, Any]:
     qty_available = raw.get("qty_available")
     safety_stock = raw.get("safety_stock")
     warehouse = raw.get("warehouse")
-    stock_mode = (
-        raw.get("stock_mode") or "set"
-    ).lower()  # "set" (default) or "increment"
+    stock_mode = (raw.get("stock_mode") or "set").lower()  # "set" (default) or "increment"
 
     if not isinstance(media_urls, list):
         media_urls = []
@@ -190,9 +180,7 @@ def _validate_row(n: Dict[str, Any]) -> List[str]:
     # currency must be in your model choices (show allowed)
     curr = str(n.get("currency", "")).upper()
     if curr and curr not in VALID_CURRENCIES:
-        errors.append(
-            f"currency '{curr}' must be one of: {', '.join(sorted(VALID_CURRENCIES))}"
-        )
+        errors.append(f"currency '{curr}' must be one of: {', '.join(sorted(VALID_CURRENCIES))}")
 
     # dims, if provided, must be a dict
     if n.get("dims") and not isinstance(n["dims"], dict):
@@ -200,9 +188,7 @@ def _validate_row(n: Dict[str, Any]) -> List[str]:
 
     # attributes, if provided, must be a dict
     if n.get("attributes") and not isinstance(n["attributes"], dict):
-        errors.append(
-            "attributes must be an object (e.g., {'color':'Black','size':'M'})."
-        )
+        errors.append("attributes must be an object (e.g., {'color':'Black','size':'M'}).")
 
     # inventory numeric checks if present
     if n.get("qty_available") not in (None, ""):
@@ -305,9 +291,7 @@ def _get_or_create_category(name: str) -> Optional[Category]:
     return obj
 
 
-def _get_or_create_subcategory(
-    cat: Optional[Category], name: str
-) -> Optional[Subcategory]:
+def _get_or_create_subcategory(cat: Optional[Category], name: str) -> Optional[Subcategory]:
     if not name or not cat:
         return None
     obj, _ = Subcategory.objects.get_or_create(
@@ -406,9 +390,7 @@ def _upsert_one(
             attributes=(n.get("attributes") or {}),  # <-- write attributes on create
             price_base=price_base,
             currency=currency,
-            weight=(
-                Decimal(str(n["weight"])) if n.get("weight") not in (None, "") else None
-            ),
+            weight=(Decimal(str(n["weight"])) if n.get("weight") not in (None, "") else None),
             dims=n.get("dims") or {},
             is_active=True,
         )
@@ -495,9 +477,7 @@ def commit_import_payload(
     for idx, row in enumerate(preview["rows"]):
         if row["action"] in ("error", "skip"):
             if row["action"] == "error":
-                results["errors"].append(
-                    {"row_index": idx, "error": "; ".join(row["errors"])}
-                )
+                results["errors"].append({"row_index": idx, "error": "; ".join(row["errors"])})
             continue
 
         if dry_run:
@@ -520,9 +500,7 @@ def commit_import_payload(
             continue
 
         try:
-            p_created, v_created, media_c, inv_act = _upsert_one(
-                row, product_cache=product_cache
-            )
+            p_created, v_created, media_c, inv_act = _upsert_one(row, product_cache=product_cache)
             if p_created:
                 results["products_created"] += 1
             else:

@@ -1,12 +1,32 @@
 repos:
+  # Ruff = linter + formatter (Black-compatible). No Black hook needed.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.9
+    rev: v0.13.1
     hooks:
       - id: ruff
-        args: [--fix]   # auto-fix what it can
+        args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
+  # Type checking (mypy). Bring Django/DRF stubs along.
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.18.1
     hooks:
-      - id: black
+      - id: mypy
+        additional_dependencies:
+          - django==5.0.6
+          - django-stubs==5.1.1
+          - djangorestframework==3.15.2
+          - djangorestframework-stubs==3.15.2
+          - types-requests
+          - python-dotenv
+        args: [--pretty]
+
+  # Lightweight hygiene hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]

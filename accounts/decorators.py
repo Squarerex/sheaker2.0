@@ -28,19 +28,13 @@ def role_required(
             if superuser_always_ok and getattr(user, "is_superuser", False):
                 return view_func(request, *args, **kwargs)
 
-            if (
-                staff_as_admin
-                and "admin" in allowed
-                and getattr(user, "is_staff", False)
-            ):
+            if staff_as_admin and "admin" in allowed and getattr(user, "is_staff", False):
                 return view_func(request, *args, **kwargs)
 
             if getattr(user, "user_type", None) in allowed:
                 return view_func(request, *args, **kwargs)
 
-            return HttpResponseForbidden(
-                "You do not have permission to view this page."
-            )
+            return HttpResponseForbidden("You do not have permission to view this page.")
 
         return _wrapped
 

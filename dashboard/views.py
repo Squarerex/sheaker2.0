@@ -5,10 +5,7 @@ from accounts.decorators import role_required
 
 def dashboard_home(request):
     # Simple router; adjust later for other roles
-    if (
-        request.user.is_authenticated
-        and getattr(request.user, "user_type", None) == "admin"
-    ):
+    if request.user.is_authenticated and getattr(request.user, "user_type", None) == "admin":
         return redirect("dashboard:admin_dashboard")
     return redirect("login")  # or render a neutral landing page
 

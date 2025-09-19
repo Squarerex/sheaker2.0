@@ -1,7 +1,10 @@
 # providers/services/sync.py
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
+from datetime import timedelta
 from typing import Any, Dict, Mapping, Tuple
 
 from django.core.cache import cache
@@ -17,12 +20,22 @@ from providers.models import ProviderAccount, ProviderSyncLog, SupplierProduct
 log = logging.getLogger(__name__)
 
 
+def _hash_raw(raw: dict) -> str:
+    try:
+        blob = json.dumps(raw, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha1(blob).hexdigest()
+    except Exception:
+        return ""
+
+
+def _has_field(model, name: str) -> bool:
+    return any(f.name == name for f in model._meta.get_fields())
+
+
 def _get_adapter_for(account: ProviderAccount):
     """Return the adapter for a provider and give it a callback to persist tokens."""
 
-    def _save_tokens(
-        access: str | None, refresh: str | None, access_expiry, refresh_expiry
-    ):
+    def _save_tokens(access: str | None, refresh: str | None, access_expiry, refresh_expiry):
         creds = dict(account.credentials_json or {})
         if access is not None:
             creds["access_token"] = access
@@ -55,7 +68,7 @@ def _product_defaults_from_mapped(p: Mapping[str, Any]) -> Dict[str, Any]:
         "is_active": p.get("is_active", True),
     }
 
-    # brand is usually a CharField in most schemas — include if exists
+    # brand is usually a CharField in most schemas – include if exists
     product_fields = {f.name: f for f in Product._meta.get_fields()}
     if "brand" in product_fields:
         field = product_fields["brand"]
@@ -63,7 +76,7 @@ def _product_defaults_from_mapped(p: Mapping[str, Any]) -> Dict[str, Any]:
         if not isinstance(field, (ForeignKey, OneToOneField, ManyToManyField)):
             defaults["brand"] = p.get("brand")
 
-    # category may be a FK in many schemas — only set if it's NOT relational
+    # category may be a FK in many schemas – only set if it's NOT relational
     if "category" in product_fields:
         field = product_fields["category"]
         if not isinstance(field, (ForeignKey, OneToOneField, ManyToManyField)):
@@ -88,7 +101,7 @@ def _upsert_product_tree(
     p = mapped["product"]
 
     if dry_run:
-        counts["products_upserted"] += 1
+        counts["products_dry_run"] += 1
         product_obj = None
     else:
         # IMPORTANT: only pass safe defaults (no FK strings)
@@ -110,8 +123,8 @@ def _upsert_product_tree(
         currency = _norm_currency(v.get("currency"))
 
         if dry_run:
-            counts["variants_upserted"] += 1
-            counts["links_upserted"] += 1
+            counts["variants_dry_run"] = counts.get("variants_dry_run", 0) + 1
+            counts["links_dry_run"] = counts.get("links_dry_run", 0) + 1
             continue
 
         assert product_obj is not None  # for type checking
@@ -155,8 +168,9 @@ def sync_provider_products(
     max_pages: int = 5,
     page_size: int = 50,
     dry_run: bool = False,
-    limit: int | None = None,  # stop after N detailed products
-    filters: dict | None = None,  # passed to CJ /product/list
+    limit: int | None = None,
+    fetch_mode: str = "per_detail",
+    filters: dict | None = None,
 ) -> Dict[str, int]:
     """
     Sync a single provider by code.
@@ -205,9 +219,7 @@ def sync_provider_products(
         log_row.status = "error"
         log_row.first_error = "Concurrency lock: another sync is running."
         log_row.finished_at = now()
-        log_row.duration_ms = int(
-            (log_row.finished_at - started).total_seconds() * 1000
-        )
+        log_row.duration_ms = int((log_row.finished_at - started).total_seconds() * 1000)
         log_row.counts = counts
         log_row.save(
             update_fields=[
@@ -222,18 +234,54 @@ def sync_provider_products(
 
     try:
         for raw in adapter.list_products(
-            page=1, page_size=page_size, max_pages=max_pages, filters=filters or {}
+            page=1,
+            page_size=page_size,
+            max_pages=max_pages,
+            filters=filters or {},
+            fetch_mode=fetch_mode,  # NEW
         ):
             if limit and counts["raw_seen"] >= limit:
                 break
             counts["raw_seen"] += 1
             try:
                 mapped = adapter.map_to_internal(raw)
-                _upsert_product_tree(mapped, account, counts, dry_run=dry_run)
+
+                # NEW: skip unchanged (if SupplierProduct has raw_hash)
+                external_id = mapped["external"]["external_id"]
+                do_hash = _has_field(SupplierProduct, "raw_hash")
+                this_hash = _hash_raw(mapped.get("raw") or {}) if do_hash else ""
+
+                if do_hash:
+                    sp = (
+                        SupplierProduct.objects.filter(
+                            provider_account=account, external_id=external_id
+                        )
+                        .only("raw_hash", "last_synced_at")
+                        .first()
+                    )
+                    if (
+                        sp
+                        and sp.raw_hash == this_hash
+                        and sp.last_synced_at
+                        and sp.last_synced_at > timezone.now() - timedelta(hours=24)
+                    ):
+                        counts["skipped_unchanged"] = counts.get("skipped_unchanged", 0) + 1
+                        continue
+
+                # proceed to upsert (passes through your dry_run)
+                product_obj, last_variant_obj = _upsert_product_tree(
+                    mapped, account, counts, dry_run=dry_run
+                )
+
+                # after the upsert, if not dry run, persist raw_hash (if field exists)
+                if not dry_run and do_hash:
+                    SupplierProduct.objects.filter(
+                        provider_account=account, external_id=external_id
+                    ).update(raw_hash=this_hash)
+
             except Exception as e:
                 counts["errors"] += 1
                 if first_error is None:
-                    # adapter already decorates HTTP errors with short response body
                     first_error = f"{type(e).__name__}: {e}"
                 log.warning(
                     "sync.item_failed provider=%s err=%s",

@@ -14,6 +14,7 @@ from providers.adapters.cj import (
     FETCH_PER_DETAIL,
     CJAdapter,
 )
+from providers.models import ProviderSyncLog
 
 
 def _to_float(x):
@@ -28,9 +29,7 @@ def _summarize(item: Mapping[str, Any]) -> Dict[str, Any]:
     title = item.get("productNameEn") or item.get("productName") or ""
     cat_path = item.get("categoryName") or ""
     variants = item.get("variants") or []
-    skus = [
-        str(v.get("variantSku") or "").strip() for v in variants if v.get("variantSku")
-    ]
+    skus = [str(v.get("variantSku") or "").strip() for v in variants if v.get("variantSku")]
     prices = [_to_float(v.get("variantSellPrice")) for v in variants]
     prices = [p for p in prices if p is not None]
     price_min = min(prices) if prices else None
@@ -114,6 +113,26 @@ def dump_provider_raw(
         "bulk_size": bulk_size,
     }
 
+    try:
+        ProviderSyncLog.objects.create(
+            provider_code=(
+                account.code
+                if hasattr(account, "code")
+                else getattr(account, "provider_code", "unknown")
+            ),
+            mode="download",
+            detail_level=fetch_mode,
+            filters=filters,
+            page_size=page_size,
+            max_pages=max_pages,
+            limit=limit,
+            count_items=seen,
+            request_count=getattr(adapter, "_req_count", None),
+            first_error=None,
+        )
+    except Exception:
+        pass
+
     if single_file:
         out_path = base_dir.with_suffix(".json")
         with out_path.open("w", encoding="utf-8") as f:
@@ -146,6 +165,26 @@ def dump_provider_raw(
         writer.writeheader()
         for row in summaries:
             writer.writerow(row)
+
+    try:
+        ProviderSyncLog.objects.create(
+            provider_code=(
+                account.code
+                if hasattr(account, "code")
+                else getattr(account, "provider_code", "unknown")
+            ),
+            mode="download",
+            detail_level=fetch_mode,
+            filters=filters,
+            page_size=page_size,
+            max_pages=max_pages,
+            limit=limit,
+            count_items=seen,
+            request_count=getattr(adapter, "_req_count", None),
+            first_error=None,
+        )
+    except Exception:
+        pass
 
     zip_path = base_dir.with_suffix(".zip")
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
