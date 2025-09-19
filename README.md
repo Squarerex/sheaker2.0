@@ -15,4 +15,11 @@ python manage.py sync_providers --code=cj --max-pages=2 --page-size=50
 
 
 ####################################
-git commit -m "reformatted" --no-verify
+pre-commit clean
+pre-commit autoupdate
+pre-commit install
+pre-commit run -a
+
+git add -A
+git commit -m "chore(settings): make dotenv optional for mypy; remove stray import; tidy prod"
+git push
