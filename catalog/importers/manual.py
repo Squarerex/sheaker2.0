@@ -42,7 +42,16 @@ NORMALIZED_FIELDS = [
     "safety_stock",
     "warehouse",
     "stock_mode",
+    # product identity (optional; helps group variants)
+    "product_key",
+    "product_productSku",
+    # NEW: carry parsed CJ data into Variant
+    "attributes",  # dict (e.g., {"color": "...", "size": "..."})
+    "vid",  # CJ variant ID (optional)
+    "variant_key",  # CJ variantKey (optional)
 ]
+
+# ---------------- I/O helpers ----------------
 
 
 def _ext(path: Path) -> str:
@@ -57,7 +66,6 @@ def _load_rows_and_headers(path: Path) -> Tuple[List[Dict[str, Any]], List[str]]
             data = data["items"]
         if not isinstance(data, list):
             raise ValueError("JSON must be a list or {'items': [...]} format.")
-        # Collect headers seen across items
         headers = sorted(
             {k for row in data if isinstance(row, dict) for k in row.keys()}
         )
@@ -82,16 +90,20 @@ def _apply_mapping(raw: Dict[str, Any], mapping: Dict[str, str]) -> Dict[str, An
     for norm_key, supplier_key in mapping.items():
         if supplier_key:
             out[norm_key] = raw.get(supplier_key)
-    # Keep unmapped keys that might already match normalized names
+    # Keep unmapped keys that already match normalized names (including product_key fields)
     for k in NORMALIZED_FIELDS:
         if k not in out and k in raw:
             out[k] = raw[k]
     return out
 
 
+# ---------------- Normalization & validation ----------------
+
+
 def _normalize_row(raw_in: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Normalize to your schema. Accept flexible names; we already may have applied mapping above.
+    Normalize to your schema. Accept flexible names; we may already have applied mapping above.
+    Pass through product_key / product_productSku if present (used for grouping).
     """
     raw = raw_in or {}
 
@@ -112,6 +124,17 @@ def _normalize_row(raw_in: Dict[str, Any]) -> Dict[str, Any]:
     dims = raw.get("dims") or {}
     media_urls = raw.get("media_urls") or raw.get("images") or []
 
+    # optional product identity fields for grouping
+    product_key = str(raw.get("product_key") or "").strip()
+    product_productSku = str(raw.get("product_productSku") or "").strip()
+
+    # CJ-derived additions
+    attributes = (
+        raw.get("attributes") or {}
+    )  # dict with standardized fields like color/size
+    vid = raw.get("vid")  # optional CJ variant id
+    variant_key = raw.get("variant_key")  # the raw variantKey string (for debugging)
+
     # Inventory extensions
     qty_available = raw.get("qty_available")
     safety_stock = raw.get("safety_stock")
@@ -122,9 +145,10 @@ def _normalize_row(raw_in: Dict[str, Any]) -> Dict[str, Any]:
 
     if not isinstance(media_urls, list):
         media_urls = []
-
     if not isinstance(dims, dict):
         dims = {}
+    if attributes is None or not isinstance(attributes, dict):
+        attributes = {}
 
     return {
         "title": title,
@@ -142,6 +166,12 @@ def _normalize_row(raw_in: Dict[str, Any]) -> Dict[str, Any]:
         "safety_stock": safety_stock,
         "warehouse": warehouse,
         "stock_mode": stock_mode,
+        "product_key": product_key,
+        "product_productSku": product_productSku,
+        # pass-through CJ extras
+        "attributes": attributes,
+        "vid": vid,
+        "variant_key": variant_key,
     }
 
 
@@ -168,6 +198,12 @@ def _validate_row(n: Dict[str, Any]) -> List[str]:
     if n.get("dims") and not isinstance(n["dims"], dict):
         errors.append("dims must be an object like {'l':10,'w':5,'h':3,'unit':'cm'}.")
 
+    # attributes, if provided, must be a dict
+    if n.get("attributes") and not isinstance(n["attributes"], dict):
+        errors.append(
+            "attributes must be an object (e.g., {'color':'Black','size':'M'})."
+        )
+
     # inventory numeric checks if present
     if n.get("qty_available") not in (None, ""):
         try:
@@ -192,6 +228,9 @@ def _classify_action(n: Dict[str, Any], upsert: bool) -> str:
     if exists and not upsert:
         return "skip"
     return "create"
+
+
+# ---------------- Preview ----------------
 
 
 def parse_file_to_preview(
@@ -256,6 +295,9 @@ def parse_file_to_preview(
     }
 
 
+# ---------------- Category helpers ----------------
+
+
 def _get_or_create_category(name: str) -> Optional[Category]:
     if not name:
         return None
@@ -274,11 +316,18 @@ def _get_or_create_subcategory(
     return obj
 
 
+# ---------------- Upsert (grouped by product_key) ----------------
+
+
 @transaction.atomic
-def _upsert_one(n: Dict[str, Any]) -> Tuple[bool, bool, int, str]:
+def _upsert_one(
+    n: Dict[str, Any], *, product_cache: Dict[str, Product]
+) -> Tuple[bool, bool, int, str]:
     """
+    Upsert a single row.
     Returns: (product_created, variant_created, media_created, inventory_action)
       inventory_action in {"", "set", "increment"}
+    Groups by n["product_key"] to avoid creating duplicate products per variant.
     """
     sku = n["sku"]
     price_base = Decimal(str(n["price"]))
@@ -286,19 +335,24 @@ def _upsert_one(n: Dict[str, Any]) -> Tuple[bool, bool, int, str]:
     if currency not in VALID_CURRENCIES:
         currency = "USD"  # last-resort fallback; validation should have caught this.
 
-    # Taxonomy
+    # Taxonomy (per row; first row for a product will effectively set it)
     cat = _get_or_create_category(n.get("category_name", ""))
     subcat = _get_or_create_subcategory(cat, n.get("subcategory_name", ""))
 
-    variant = Variant.objects.select_related("product").filter(sku=sku).first()
     product_created = False
     variant_created = False
     media_created = 0
     inventory_action = ""
 
+    # If the variant already exists, we update it and its product and also hydrate cache.
+    variant = Variant.objects.select_related("product").filter(sku=sku).first()
     if variant:
-        # UPDATE
         p = variant.product
+        key = (n.get("product_key") or "").strip()
+        if key and key not in product_cache:
+            product_cache[key] = p
+
+        # UPDATE product fields
         if n["title"]:
             p.title = n["title"]
         if n.get("description") is not None:
@@ -311,8 +365,12 @@ def _upsert_one(n: Dict[str, Any]) -> Tuple[bool, bool, int, str]:
             p.subcategory = subcat
         p.save()
 
+        # UPDATE variant fields
         variant.price_base = price_base
         variant.currency = currency
+        # attributes (overwrite or merge policy; we overwrite with latest)
+        if isinstance(n.get("attributes"), dict) and n["attributes"]:
+            variant.attributes = n["attributes"]
         if n.get("weight") not in (None, ""):
             try:
                 variant.weight = Decimal(str(n["weight"]))
@@ -320,24 +378,32 @@ def _upsert_one(n: Dict[str, Any]) -> Tuple[bool, bool, int, str]:
                 pass
         if isinstance(n.get("dims"), dict):
             variant.dims = n["dims"]
+        variant.is_active = True
         variant.save()
 
     else:
-        # CREATE
-        p = Product.objects.create(
-            title=n["title"],
-            description=n.get("description", ""),
-            brand=n.get("brand", ""),
-            category=cat,
-            subcategory=subcat,
-            is_active=True,
-        )
-        product_created = True
+        # CREATE or re-use existing product based on product_key
+        key = (n.get("product_key") or "").strip()
+        if key and key in product_cache:
+            p = product_cache[key]
+        else:
+            p = Product.objects.create(
+                title=n["title"],
+                description=n.get("description", ""),
+                brand=n.get("brand", ""),
+                category=cat,
+                subcategory=subcat,
+                is_active=True,
+            )
+            product_created = True
+            if key:
+                product_cache[key] = p
 
+        # CREATE variant under that product
         variant = Variant.objects.create(
             product=p,
             sku=sku,
-            attributes={},
+            attributes=(n.get("attributes") or {}),  # <-- write attributes on create
             price_base=price_base,
             currency=currency,
             weight=(
@@ -349,7 +415,6 @@ def _upsert_one(n: Dict[str, Any]) -> Tuple[bool, bool, int, str]:
         variant_created = True
 
     # --- Inventory (OneToOne) ---
-    # Your model: Inventory(variant, qty_available, safety_stock, warehouse)  :contentReference[oaicite:5]{index=5}
     if (
         n.get("qty_available") not in (None, "")
         or n.get("safety_stock") not in (None, "")
@@ -371,21 +436,38 @@ def _upsert_one(n: Dict[str, Any]) -> Tuple[bool, bool, int, str]:
             inv.warehouse = str(n["warehouse"])
         inv.save()
 
-    # --- Media from external URLs ---
-    for url in n.get("media_urls", []):
-        if not url:
-            continue
-        # Your Media validates kind/content alignment; for external URL, use kind='external' + url.  :contentReference[oaicite:6]{index=6}
-        Media.objects.get_or_create(
-            product=variant.product,
-            variant=None,
-            kind=Media.KIND_EXTERNAL,
-            url=str(url),
-            defaults={"alt": n.get("title", ""), "is_main": False},
+    # --- Media from external URLs (attach to VARIANT) ---
+    urls = [u for u in (n.get("media_urls") or []) if u]
+    if urls:
+        existing = set(
+            Media.objects.filter(variant=variant, kind=Media.KIND_EXTERNAL).values_list(
+                "url", flat=True
+            )
         )
-        media_created += 1
+        has_media = variant.media.exists()
+        for idx, url in enumerate(urls):
+            if url in existing:
+                continue
+            is_main = False
+            # If the variant has no media at all yet, make the FIRST created one main
+            if not has_media and media_created == 0 and idx == 0:
+                is_main = True
+            Media.objects.create(
+                product=variant.product,
+                variant=variant,
+                kind=Media.KIND_EXTERNAL,
+                url=str(url),
+                alt=n.get("title", "")[:255],
+                is_main=is_main,
+                position=0 if is_main else 1,
+            )
+            media_created += 1
+            has_media = True
 
     return product_created, variant_created, media_created, inventory_action
+
+
+# ---------------- Commit ----------------
 
 
 def commit_import_payload(
@@ -407,6 +489,9 @@ def commit_import_payload(
         "errors": [],
     }
 
+    # Cache of product_key -> Product to keep all variants under the same product within this run
+    product_cache: Dict[str, Product] = {}
+
     for idx, row in enumerate(preview["rows"]):
         if row["action"] in ("error", "skip"):
             if row["action"] == "error":
@@ -416,17 +501,17 @@ def commit_import_payload(
             continue
 
         if dry_run:
-            # "Would do" counts
+            # counts are per-variant (fine for summaries)
             if row["action"] == "create":
-                results["products_created"] += 1
+                results["products_created"] += 1  # may overcount in dry-run, acceptable
                 results["variants_created"] += 1
             elif row["action"] == "update":
                 results["products_updated"] += 1
                 results["variants_updated"] += 1
 
             if row.get("media_urls"):
-                results["media_created"] += len(row["media_urls"])
-
+                # approximate count; actual commit avoids duplicates
+                results["media_created"] += len([u for u in row["media_urls"] if u])
             if row.get("qty_available") not in (None, ""):
                 if (row.get("stock_mode") or "set") == "increment":
                     results["inventory_incremented"] += 1
@@ -435,7 +520,9 @@ def commit_import_payload(
             continue
 
         try:
-            p_created, v_created, media_c, inv_act = _upsert_one(row)
+            p_created, v_created, media_c, inv_act = _upsert_one(
+                row, product_cache=product_cache
+            )
             if p_created:
                 results["products_created"] += 1
             else:

@@ -1,0 +1,56 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1 class="mb-3">Targeted Provider Sync</h1>
+{% if messages %}
+  <ul class="messagelist">
+    {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message|safe }}</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+<form method="post" class="card p-3" novalidate>
+  {% csrf_token %}
+
+  <fieldset class="mb-3">
+    <legend>Mode</legend>
+    {{ form.mode }}
+  </fieldset>
+
+  <fieldset class="mb-3">
+    <legend>Detail level</legend>
+    {{ form.detail }}
+    <div class="form-text">"List only" is fastest and avoids most API calls. "Bulk detail" tries to fetch many PIDs at once.</div>
+  </fieldset>
+
+  <div class="form-row">
+    <label>Provider</label> {{ form.provider }}
+  </div>
+
+  <div class="form-row"><label>Page size (max 200)</label> {{ form.page_size }}</div>
+  <div class="form-row"><label>Max pages</label> {{ form.max_pages }}</div>
+  <div class="form-row"><label>Limit</label> {{ form.limit }}</div>
+
+  <div class="form-row">
+    <label>Bulk size</label> {{ form.bulk_size }}
+    <div class="form-text">Only used in "Try bulk detail".</div>
+  </div>
+
+  <div class="form-row"><label>Keyword</label> {{ form.keyword }}</div>
+  <div class="form-row"><label>Category ID</label> {{ form.category_id }}</div>
+
+  <div class="form-row">
+  <label>Single file</label> {{ form.single_file }}
+  <div class="form-text">Bundle all products into one JSON file.</div>
+</div>
+
+  <div class="form-row">
+    <label>Dry run</label> {{ form.dry_run }}
+    <div class="form-text">Only used in Import mode.</div>
+  </div>
+
+  <div class="submit-row">
+    <input type="submit" value="Run" class="default">
+    <a class="button" href="{% url 'dashboard:providers_status' %}">Back to status</a>
+  </div>
+</form>
+{% endblock %}

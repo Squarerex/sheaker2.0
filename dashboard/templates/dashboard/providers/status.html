@@ -1,0 +1,99 @@
+{% extends "dashboard/base_dashboard.html" %}
+{% block content %}
+<h1 class="mb-3">Provider Health / Status</h1>
+
+<div class="table-responsive">
+  <table class="table table-sm table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Name</th>
+        <th>Active</th>
+        <th>Last Status</th>
+        <th>Started</th>
+        <th>Finished</th>
+        <th>Duration</th>
+        <th>Counts</th>
+        <th>Error</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="m-0">Provider Health / Status</h1>
+  <a class="btn btn-sm btn-primary" href="{% url 'dashboard:providers_sync_form' %}">Targeted sync</a>
+</div>
+
+    {% for r in rows %}
+      <tr>
+        <td><code>{{ r.code }}</code></td>
+        <td>{{ r.name }}</td>
+        <td>
+          {% if r.is_active %}
+            <span class="badge text-bg-success">Yes</span>
+          {% else %}
+            <span class="badge text-bg-secondary">No</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r.last_status == "success" %}
+            <span class="badge text-bg-success">success</span>
+          {% elif r.last_status == "partial" %}
+            <span class="badge text-bg-warning">partial</span>
+          {% elif r.last_status == "error" %}
+            <span class="badge text-bg-danger">error</span>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>{{ r.last_started|date:"Y-m-d H:i:s" }}</td>
+        <td>{{ r.last_finished|date:"Y-m-d H:i:s" }}</td>
+        <td>
+          {% if r.duration_ms %}
+            {{ r.duration_ms }} ms
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          {% if r.counts %}
+            <code style="white-space: pre-wrap;">{{ r.counts|json_script:"counts"|safe }}</code>
+            <small>
+              raw_seen={{ r.counts.raw_seen|default:0 }},
+              products={{ r.counts.products_upserted|default:0 }},
+              variants={{ r.counts.variants_upserted|default:0 }},
+              skipped={{ r.counts.variants_skipped|default:0 }},
+              links={{ r.counts.links_upserted|default:0 }},
+              errors={{ r.counts.errors|default:0 }}
+            </small>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td style="max-width: 260px;">
+          {% if r.first_error %}
+            <span class="text-danger" title="{{ r.first_error }}">{{ r.first_error|truncatechars:60 }}</span>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          <!-- Sync now (uses your existing route) -->
+          <a class="btn btn-sm btn-primary"
+             href="{% url 'dashboard:provider_sync_now' code=r.code %}">
+            Sync now
+          </a>
+          <!-- Optional: Ping link if you added it as a dashboard route; else remove -->
+          <!--
+          <a class="btn btn-sm btn-outline-secondary"
+             href="{% url 'dashboard:provider_ping' code=r.code %}">
+            Test credentials
+          </a>
+          -->
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

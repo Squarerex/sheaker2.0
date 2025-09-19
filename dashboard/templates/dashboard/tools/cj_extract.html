@@ -1,0 +1,36 @@
+{% extends "dashboard/admin_dashboard.html" %}
+{% load static %}
+
+{% block title %}CJ Minimal Extractor{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header"><h3>CJ Minimal Extractor</h3></div>
+  <div class="card-body">
+    <p class="text-muted">
+      Upload a CJ JSON dump (<code>{"items":[...]}</code>, an array of products, or a single product object).
+      Choose JSON or CSV output. The tool extracts only the fields needed for storefront options and CJ fulfillment.
+    </p>
+
+    <form method="post" enctype="multipart/form-data" class="form">
+      {% csrf_token %}
+      <div class="mb-3">
+        {{ form.dump_file.label_tag }} {{ form.dump_file }}
+        <div class="form-text">{{ form.dump_file.help_text }}</div>
+        {% for e in form.dump_file.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+      </div>
+      <div class="mb-3">
+        {{ form.output_format.label_tag }} {{ form.output_format }}
+      </div>
+
+      {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+          {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+        </div>
+      {% endif %}
+
+      <button type="submit" class="btn btn-primary">Extract & Download</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

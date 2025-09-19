@@ -77,3 +77,15 @@ class BulkUploadForm(forms.Form):
                 out.write(chunk)
 
         return dest, token
+
+
+class CJMinimalExtractForm(forms.Form):
+    dump_file = forms.FileField(
+        label="CJ JSON dump",
+        help_text="Upload a CJ dump: {'items': [...]}, a single product, or an array of products.",
+    )
+    output_format = forms.ChoiceField(
+        choices=[("json", "JSON (minimal)"), ("csv", "CSV (variants rows)")],
+        initial="json",
+        label="Output format",
+    )

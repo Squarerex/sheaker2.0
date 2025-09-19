@@ -18,4 +18,9 @@ app.conf.beat_schedule = {
         "schedule": crontab(hour=3, minute=0),
         "args": (24,),
     },
+    "sync-cj-daily-2am": {
+        "task": "providers.tasks.sync_provider",
+        "schedule": crontab(hour=2, minute=0),
+        "args": ("cj",),
+    },
 }

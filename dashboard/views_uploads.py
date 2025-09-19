@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import datetime
+import io
 import json
+import json as _json
+import uuid as _uuid
+from pathlib import Path as _Path
 from typing import Dict
 
 from django.contrib import messages
@@ -14,6 +19,7 @@ from django.http import (
 )
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.encoding import smart_str
 
 from catalog.importers.manual import (
     NORMALIZED_FIELDS,
@@ -22,8 +28,11 @@ from catalog.importers.manual import (
 )
 from dashboard.models import ImportLog
 
+# CJ extractor utils (used in the "tools/cj-extract" endpoint)
+from dashboard.utils.cj_extract import extract_minimal_from_json_payload, to_csv_rows
+
 from .authz import role_required
-from .forms_uploads import TMP_DIR, BulkUploadForm
+from .forms_uploads import TMP_DIR, BulkUploadForm, CJMinimalExtractForm
 
 
 def _parse_mapping_from_request(request: HttpRequest) -> Dict[str, str]:
@@ -87,16 +96,314 @@ def product_upload_preview(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and request.POST.get("apply_mapping") == "1":
         mapping = _parse_mapping_from_request(request)
 
+    # Auto-transform CJ-minimal JSON (variants) -> flat per-variant rows for the uploader
+    path_for_preview = _maybe_transform_cj_minimal_to_normalized(path)
+
     preview = parse_file_to_preview(
-        path, upsert_flag, mapping=mapping, page=page, per_page=per
+        path_for_preview, upsert_flag, mapping=mapping, page=page, per_page=per
     )
+
+    # Provide indices INSIDE preview so template can do preview.start_index
+    rows = preview.get("rows", [])
+    start_index = (page - 1) * per + 1 if rows else 0
+    end_index = start_index + len(rows) - 1 if rows else 0
+    preview["start_index"] = start_index
+    preview["end_index"] = end_index
 
     context = {
         "step": "preview",
         "preview": preview,
         "normalized_fields": NORMALIZED_FIELDS,
+        # Optional top-level copies (if other template parts use them)
+        "page": page,
+        "per": per,
     }
     return render(request, "dashboard/products/product_upload.html", context)
+
+
+# ---- CJ-minimal -> normalized transformation helper --------------------------------
+def _kg_from_grams(g) -> str | None:
+    try:
+        return f"{(float(g) / 1000.0):.3f}"
+    except Exception:
+        return None
+
+
+def _cm_from_mm(v) -> float | None:
+    try:
+        return float(v) / 10.0
+    except Exception:
+        return None
+
+
+def _dims_cm_from_mm(dims_mm: dict | None) -> dict:
+    dims_mm = dims_mm or {}
+    return {
+        "l": _cm_from_mm(dims_mm.get("long")),
+        "w": _cm_from_mm(dims_mm.get("width")),
+        "h": _cm_from_mm(dims_mm.get("height")),
+        "unit": "cm",
+    }
+
+
+# --------- color/size extraction from variantKey ---------
+
+_COLOR_WORDS = {
+    "black",
+    "white",
+    "gray",
+    "grey",
+    "red",
+    "blue",
+    "navy",
+    "indigo",
+    "green",
+    "moss",
+    "bean",
+    "pink",
+    "smoke",
+    "smoky",
+    "cream",
+    "ivory",
+    "coffee",
+    "brown",
+    "beige",
+    "gold",
+    "golden",
+    "rose",
+    "rose gold",
+    "silver",
+    "cork",
+    "walnut",
+    "bluish",
+    "light",
+    "dark",
+    "purple",
+    "yellow",
+    "orange",
+}
+
+_AXIS_ALIASES = {
+    # If CJ axis names come through, hint how to map them
+    "specification": "size",
+    "specifications": "size",
+    "style": "size",
+    "capacity": "size",
+    "model": "size",
+    "color": "color",
+    "colour": "color",
+    "light color": "color",
+}
+
+
+def _looks_like_size(tok: str) -> bool:
+    t = tok.strip().lower()
+    if not t:
+        return False
+    return (
+        "oz" in t
+        or "cm" in t
+        or "mm" in t
+        or "g" in t
+        or "kg" in t
+        or t.startswith("no ")
+        or t.startswith("no.")
+        or any(ch.isdigit() for ch in t)
+    )
+
+
+def _looks_like_color(tok: str) -> bool:
+    t = tok.strip().lower()
+    if not t:
+        return False
+    return any(w in t for w in _COLOR_WORDS)
+
+
+def _parse_color_size_from_variant_key(
+    variant_key: str, axes: list[str] | None
+) -> dict:
+    """
+    Given CJ 'variantKey' and optional axis names, derive color/size.
+    """
+    if not variant_key:
+        return {}
+
+    axes = [a.strip() for a in (axes or []) if a and isinstance(a, str)]
+    ax_hints = [_AXIS_ALIASES.get(a.lower(), a.lower()) for a in axes]
+
+    raw = variant_key.strip()
+    # Try most common separators first
+    seps = [" - ", "-", "/", "·", "—", "|", ","]
+    parts = None
+    for sep in seps:
+        if sep in raw:
+            parts = [p.strip() for p in raw.split(sep) if p.strip()]
+            break
+    if not parts:
+        parts = [raw]
+
+    color = None
+    size = None
+
+    if len(parts) == 1:
+        p = parts[0]
+        if _looks_like_color(p):
+            color = p
+        elif _looks_like_size(p):
+            size = p
+    else:
+        a, b = parts[0], parts[1]
+        # Confident identification
+        if _looks_like_size(a) and _looks_like_color(b):
+            size, color = a, b
+        elif _looks_like_color(a) and _looks_like_size(b):
+            color, size = a, b
+        else:
+            # Fall back to axis hints if provided
+            if len(ax_hints) >= 2:
+                if "color" in ax_hints[0] and "size" in ax_hints[1]:
+                    color, size = a, b
+                elif "size" in ax_hints[0] and "color" in ax_hints[1]:
+                    size, color = a, b
+            # Last resort: heuristic per token
+            if color is None and _looks_like_color(a):
+                color = a
+            if size is None and _looks_like_size(a):
+                size = a
+            if color is None and _looks_like_color(b):
+                color = b
+            if size is None and _looks_like_size(b):
+                size = b
+
+        # If there are more segments and we still miss color, try joining the tail
+        if len(parts) > 2 and color is None:
+            tail = " ".join(parts[1:])
+            if _looks_like_color(tail):
+                color = tail
+
+    out = {}
+    if color:
+        out["color"] = color
+    if size:
+        out["size"] = size
+    return out
+
+
+def _maybe_transform_cj_minimal_to_normalized(path: _Path) -> _Path:
+    """
+    If 'path' points to a CJ-minimal JSON (list of products with 'variants'),
+    flatten it into the uploader's expected normalized schema (one row per variant).
+    Also:
+      - converts weight_g -> weight (kg, string) and dims_mm -> dims (cm JSON),
+      - extracts color/size from variantKey into 'attributes',
+      - carries vid and variant_key for debugging/fulfillment.
+    Otherwise, return the original path unchanged.
+    """
+    try:
+        if path.suffix.lower() != ".json":
+            return path
+        data = _json.loads(path.read_text(encoding="utf-8"))
+        # Accept list[...] or {"items":[...]}
+        items = data.get("items") if isinstance(data, dict) else data
+        if not isinstance(items, list):
+            return path
+        # If it doesn't look like our CJ-minimal structure, leave it as-is.
+        if not items or not isinstance(items[0], dict) or "variants" not in items[0]:
+            return path
+
+        normalized_rows = []
+
+        for p in items:
+            title = p.get("title") or p.get("productNameEn") or ""
+            category = p.get("category") or p.get("categoryName") or ""
+            images = p.get("images") or p.get("productImageSet") or []
+            product_main_img = images[0] if images else ""
+
+            axes = p.get("axes") or p.get("productKeyEn") or []
+            if isinstance(axes, str):
+                # e.g. "Color-Size"
+                axes = [
+                    a.strip()
+                    for a in axes.replace("–", "-").replace("—", "-").split("-")
+                    if a.strip()
+                ]
+
+            # stable product key fields
+            product_key = p.get("pid") or p.get("productSku") or title
+            product_productSku = p.get("productSku") or ""
+
+            for v in p.get("variants") or []:
+                sku = v.get("variantSku") or ""
+                price = v.get("price") or v.get("variantSellPrice")
+                vimg = v.get("image") or v.get("variantImage") or product_main_img
+
+                weight = _kg_from_grams(v.get("weight_g") or v.get("variantWeight"))
+                dims = _dims_cm_from_mm(v.get("dims_mm") or v.get("variantStandard"))
+
+                # ---- attributes from variantKey + CJ attributes fallback ----
+                variant_key = v.get("variantKey") or ""
+                attrs_from_key = _parse_color_size_from_variant_key(variant_key, axes)
+                cj_attrs = v.get("attributes") or {}
+                # normalize CJ attrs if present (e.g., "Color"/"Size"/"Specifications")
+                for k, val in list(cj_attrs.items()):
+                    lk = k.strip().lower()
+                    if "color" in lk and val and "color" not in attrs_from_key:
+                        attrs_from_key["color"] = val
+                    if (
+                        (
+                            lk == "size"
+                            or lk in _AXIS_ALIASES
+                            and _AXIS_ALIASES[lk] == "size"
+                        )
+                        and val
+                        and "size" not in attrs_from_key
+                    ):
+                        attrs_from_key["size"] = val
+
+                row = {
+                    # grouping / identity
+                    "product_key": product_key,
+                    "product_productSku": product_productSku,
+                    # uploader fields
+                    "title": title,
+                    "description": "",
+                    "brand": "",
+                    "category_name": category,
+                    "subcategory_name": "",
+                    "sku": sku,  # Variant.sku
+                    "price": str(price) if price is not None else "",
+                    "currency": "USD",
+                    "weight": weight or "",
+                    "dims": (
+                        dims if isinstance(dims, dict) and any(dims.values()) else {}
+                    ),
+                    "media_urls": [vimg] if vimg else images,
+                    # NEW: CJ identifiers & attributes for importer
+                    "vid": v.get("vid"),
+                    "variant_key": variant_key,
+                    "attributes": attrs_from_key,
+                    # inventory placeholders
+                    "qty_available": None,
+                    "safety_stock": None,
+                    "warehouse": None,
+                    "stock_mode": "set",
+                }
+                normalized_rows.append(row)
+
+        # Write a new temp file next to the original
+        new_token = f"{_uuid.uuid4().hex}.json"
+        new_path = path.parent / new_token
+        new_path.write_text(
+            _json.dumps(normalized_rows, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        return new_path
+    except Exception:
+        # If anything goes wrong, fall back to the original file so preview still works
+        return path
+
+
+# ---- Commit & misc endpoints --------------------------------------------------------
 
 
 @role_required(["admin", "editor", "marketer"])
@@ -228,3 +535,61 @@ def product_upload_errors_json(request: HttpRequest) -> HttpResponse:
     preview = parse_file_to_preview(p, upsert, mapping=mapping)
     errs = [r for r in preview["rows"] if r.get("action") == "error"]
     return JsonResponse({"errors": errs}, json_dumps_params={"indent": 2})
+
+
+@role_required(["admin", "editor"])
+def cj_minimal_extract(request: HttpRequest) -> HttpResponse:
+    """
+    Upload a CJ dump (JSON), convert to minimal schema, and return a download.
+    """
+    if request.method == "GET":
+        form = CJMinimalExtractForm()
+        return render(request, "dashboard/tools/cj_extract.html", {"form": form})
+
+    form = CJMinimalExtractForm(request.POST, request.FILES)
+    if not form.is_valid():
+        return render(request, "dashboard/tools/cj_extract.html", {"form": form})
+
+    dump_file = form.cleaned_data["dump_file"]
+    output_format = form.cleaned_data["output_format"]
+
+    try:
+        # Read and parse JSON payload
+        raw = dump_file.read().decode("utf-8", errors="replace")
+        data = json.loads(raw)
+        minimal = extract_minimal_from_json_payload(data)
+    except json.JSONDecodeError:
+        form.add_error("dump_file", "Invalid JSON file.")
+        return render(request, "dashboard/tools/cj_extract.html", {"form": form})
+    except Exception as e:
+        form.add_error(None, f"Failed to process file: {e}")
+        return render(request, "dashboard/tools/cj_extract.html", {"form": form})
+
+    now_stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+
+    if output_format == "csv":
+        headers, rows = to_csv_rows(minimal)
+        buf = io.StringIO()
+        import csv
+
+        writer = csv.writer(buf)
+        writer.writerow(headers)
+        writer.writerows(rows)
+        filename = f"cj_minimal_variants_{now_stamp}.csv"
+        response = HttpResponse(
+            buf.getvalue().encode("utf-8-sig"),
+            content_type="text/csv; charset=utf-8",
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="{smart_str(filename)}"'
+        )
+        return response
+
+    # default JSON
+    content = json.dumps(minimal, ensure_ascii=False, indent=2)
+    filename = f"cj_minimal_products_{now_stamp}.json"
+    response = HttpResponse(
+        content.encode("utf-8"), content_type="application/json; charset=utf-8"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{smart_str(filename)}"'
+    return response

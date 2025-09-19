@@ -1,5 +1,7 @@
 import os
+
 from .base import *  # noqa
+
 ENV_NAME = "prod"
 # --- Debug & hosts ---
 DEBUG = False
@@ -8,7 +10,7 @@ DEBUG = False
 # (base.py already loads it into ALLOWED_HOSTS via env)
 if not ALLOWED_HOSTS:
     # Fail fast if not configured
-    ALLOWED_HOSTS = []
+    ALLOWED_HOSTS = ["sheaker.com", "www.sheaker.com"]
     # You can raise if you prefer:
     # raise RuntimeError("ALLOWED_HOSTS must be set in production")
 
@@ -34,7 +36,9 @@ EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() == "true"
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@localhost")
+DEFAULT_FROM_EMAIL = os.getenv(
+    "DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "noreply@localhost"
+)
 
 # --- Cache (Redis if REDIS_URL provided; else locmem) ---
 REDIS_URL = os.getenv("REDIS_URL", "")
@@ -92,7 +96,15 @@ LOGGING = {
         "level": os.getenv("DJANGO_LOG_LEVEL", "INFO"),
     },
     "loggers": {
-        "django.security": {"handlers": ["console"], "level": "INFO", "propagate": True},
-        "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": True},
+        "django.security": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": True,
+        },
     },
 }

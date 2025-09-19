@@ -1,26 +1,29 @@
 # dashboard/views_home.py
 from __future__ import annotations
 
+from typing import Optional
+
+from django.contrib.auth.views import redirect_to_login
 from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from catalog.models import (
     Inventory,
     Media,
     Product,
     Variant,
-)  # for quick stats on admin/editor
+)  # quick stats for editor/admin
 
 from .authz import role_required  # your decorator from authz.py
 
-# Role priority: if a user has multiple groups, we pick the first that appears here.
-ROLE_PRIORITY = ["admin", "editor", "marketer", "vendor"]
+# If a user belongs to multiple groups, we pick the first match in this order.
+ROLE_PRIORITY = ["admin", "editor", "marketer", "vendor", "customer"]
 
 
-def _user_primary_role(request: HttpRequest) -> str | None:
+def _user_primary_role(request: HttpRequest) -> Optional[str]:
     """
     Return the user's primary role by priority, or None if they have no role.
-    Superusers are treated as 'admin'. Staff (no group) treated as 'editor'.
+    Superusers -> 'admin'. (Optional: treat staff-without-group as 'editor'.)
     """
     user = request.user
     if not user.is_authenticated:
@@ -29,41 +32,43 @@ def _user_primary_role(request: HttpRequest) -> str | None:
     if user.is_superuser:
         return "admin"
 
-    # Exact group name match, case-insensitive
+    # Exact group name match (case-insensitive)
     user_groups = {g.name.lower() for g in user.groups.all()}
     for role in ROLE_PRIORITY:
         if role in user_groups:
             return role
 
-    # Optional: treat staff without a group as editors
+    # Uncomment if you want staff-without-group to land on editor dashboard:
     # if user.is_staff:
     #     return "editor"
 
-    # return None
+    return None
 
 
-# def dashboard_home(request: HttpRequest) -> HttpResponse:
-#     """
-#     GET /dashboard/
-#     - If not logged in → send to login
-#     - If logged in → detect role and redirect to their dashboard URL
-#     - If no role → show a neutral page explaining they need a role
-#     """
-#     if not request.user.is_authenticated:
-#         return redirect_to_login(next=request.get_full_path())
+def dashboard_home(request: HttpRequest) -> HttpResponse:
+    """
+    GET /dashboard/
+    - If not logged in → send to login
+    - If logged in → detect role and redirect to their dashboard URL
+    - If no role → render a neutral explainer page (you can customize template)
+    """
+    if not request.user.is_authenticated:
+        return redirect_to_login(next=request.get_full_path())
 
-#     role = _user_primary_role(request)
-#     if role == "admin":
-#         return redirect("dashboard:admin_dashboard")
-#     if role == "editor":
-#         return redirect("dashboard:editor_dashboard")
-#     if role == "marketer":
-#         return redirect("dashboard:marketer-dashboard")
-#     if role == "vendor":
-#         return redirect("dashboard:vendor_dashboard")
+    role = _user_primary_role(request)
+    if role == "admin":
+        return redirect("dashboard:admin_dashboard")
+    if role == "editor":
+        return redirect("dashboard:editor_dashboard")
+    if role == "marketer":
+        return redirect("dashboard:marketer_dashboard")
+    if role == "vendor":
+        return redirect("dashboard:vendor_dashboard")
+    if role == "customer":
+        return redirect("dashboard:customer_dashboard")
 
-#     if role == "customer":
-#         return redirect("dashboard:customer_dashboard")
+    # No role: show a simple page (create templates/dashboard/no_role.html or tweak as you prefer)
+    return render(request, "dashboard/no_role.html", {"role": None})
 
 
 @role_required(["admin"])
@@ -103,7 +108,6 @@ def editor_dashboard(request: HttpRequest) -> HttpResponse:
 def marketer_dashboard(request: HttpRequest) -> HttpResponse:
     """
     /dashboard/marketer/ — visible to marketer group.
-    Keep Phase 1 simple; add KPIs later.
     """
     return render(request, "dashboard/marketer_dashboard.html", {"role": "marketer"})
 
@@ -112,7 +116,6 @@ def marketer_dashboard(request: HttpRequest) -> HttpResponse:
 def vendor_dashboard(request: HttpRequest) -> HttpResponse:
     """
     /dashboard/vendor/ — visible to vendor group.
-    Phase 2 will scope to vendor-owned products.
     """
     return render(request, "dashboard/vendor_dashboard.html", {"role": "vendor"})
 
@@ -120,7 +123,7 @@ def vendor_dashboard(request: HttpRequest) -> HttpResponse:
 @role_required(["customer"])
 def customer_dashboard(request: HttpRequest) -> HttpResponse:
     """
-    /dashboard/vendor/ — visible to customer group.
+    /dashboard/customer/ — visible to customer group.
     """
     return render(
         request, "dashboard/customers/customers_dashboard.html", {"role": "customer"}

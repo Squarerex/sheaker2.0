@@ -10,7 +10,7 @@ load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-in-prod")
 
-DEBUG = False  # overridden in dev.py
+DEBUG = True  # overridden in dev.py
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -146,3 +146,10 @@ CELERY_TASK_SOFT_TIME_LIMIT = 20
 # Dev email (for password reset later, optional)
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "Sheaker <no-reply@sheaker.local>"
+
+
+LOGGING = {
+    "version": 1,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "INFO"},
+}
