@@ -13,9 +13,7 @@ except Exception:  # ImportError on mypy's venv, or any edge case
 if load_dotenv:
     load_dotenv(BASE_DIR / ".env")
 
-
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-in-prod")
-
 DEBUG = True  # overridden in dev.py
 
 AUTH_USER_MODEL = "accounts.User"
@@ -62,6 +60,8 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                # Expose session cart everywhere:
+                "core.context_processors.cart_context",
             ]
         },
     }
@@ -82,9 +82,7 @@ DATABASES = {
     }
 }
 
-# --- Auth ---
-AUTH_USER_MODEL = "accounts.User"
-
+# --- Auth redirects ---
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "accounts:post_login_redirect"
 LOGOUT_REDIRECT_URL = "accounts:login"
@@ -92,8 +90,7 @@ LOGOUT_REDIRECT_URL = "accounts:login"
 # --- Public signup toggle (ON for Phase 1) ---
 ALLOW_PUBLIC_SIGNUP = True
 
-
-# --- Stronger password hashing (optional but recommended; pip install argon2-cffi) ---
+# --- Stronger password hashing (optional; requires argon2-cffi) ---
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
@@ -110,19 +107,16 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {"min_length": 8},
     },
-    {
-        "NAME": "accounts.validators.MaximumLengthValidator",
-        "OPTIONS": {"max_length": 64},
-    },
+    {"NAME": "accounts.validators.MaximumLengthValidator", "OPTIONS": {"max_length": 64}},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
-
 
 TMP_IMPORT_DIR = BASE_DIR / "tmp_imports"
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2.5 * 1024 * 1024
+
 # --- Static & Media ---
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]  # for development
@@ -139,16 +133,15 @@ USE_TZ = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# --- Celery ---
 CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_TIME_LIMIT = 30
 CELERY_TASK_SOFT_TIME_LIMIT = 20
 
-
-# Dev email (for password reset later, optional)
+# --- Email (dev) ---
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = "Sheaker <no-reply@sheaker.local>"
-
 
 LOGGING = {
     "version": 1,

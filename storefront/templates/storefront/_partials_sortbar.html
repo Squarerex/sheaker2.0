@@ -1,0 +1,11 @@
+<form method="get" class="mb-3">
+  <label class="mr-2 text-sm">Sort:</label>
+  <select name="sort" class="border rounded p-1" onchange="this.form.submit()">
+    {% for key, tup in SORT_OPTIONS.items %}
+      {% with label=tup.1 %}
+        <option value="{{ key }}" {% if key == sort_key %}selected{% endif %}>{{ label }}</option>
+      {% endwith %}
+    {% endfor %}
+  </select>
+  {# preserve page is unnecessary on change; paginator will reset to page 1 #}
+</form>

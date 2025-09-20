@@ -1,0 +1,26 @@
+{% comment %} expects a list like:
+  [("Home","storefront:home"),
+   ("Category Name","storefront:category","category-slug"),
+   ("Product Title", None)]
+If the tuple has a 3rd item, it is passed as slug=... to {% url %}.
+{% endcomment %}
+<nav aria-label="Breadcrumb" class="mb-3 text-sm text-gray-600">
+  <ol class="flex items-center gap-1">
+    {% for crumb in breadcrumb %}
+      {% with label=crumb.0 urlname=crumb.1 slug=crumb.2 %}
+      <li>
+        {% if urlname %}
+          {% if slug %}
+            <a href="{% url urlname slug=slug %}" class="underline">{{ label }}</a>
+          {% else %}
+            <a href="{% url urlname %}" class="underline">{{ label }}</a>
+          {% endif %}
+          {% if not forloop.last %} <span>/</span> {% endif %}
+        {% else %}
+          <span class="text-gray-800">{{ label }}</span>
+        {% endif %}
+      </li>
+      {% endwith %}
+    {% endfor %}
+  </ol>
+</nav>

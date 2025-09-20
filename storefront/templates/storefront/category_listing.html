@@ -1,0 +1,84 @@
+{% extends "storefront/_base.html" %}
+{% load static money %}
+
+{% block meta_title %}{{ category.name|default:category.slug }} — Sheaker{% endblock %}
+
+{# ---------- JSON-LD: ItemList + BreadcrumbList (uses breadcrumb3) ---------- #}
+{% block jsonld %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "{{ category.name|default:category.slug|escapejs }}",
+  "url": "{{ seo.canonical|default:request.build_absolute_uri }}",
+  "itemListElement": [
+    {% for p in page_obj %}
+    { "@type": "ListItem",
+      "position": {{ forloop.counter0|add:page_obj.start_index }},
+      "url": "{% url 'storefront:product_detail' slug=p.slug %}" }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {% for label, urlname, arg in breadcrumb3 %}
+      {% if urlname %}
+        { "@type": "ListItem",
+          "position": {{ forloop.counter }},
+          "name": "{{ label|escapejs }}",
+          "item": "{% if arg %}{% url urlname arg %}{% else %}{% url urlname %}{% endif %}" }{% if not forloop.last %},{% endif %}
+      {% else %}
+        { "@type": "ListItem",
+          "position": {{ forloop.counter }},
+          "name": "{{ label|escapejs }}" }{% if not forloop.last %},{% endif %}
+      {% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "storefront/_partials_breadcrumb.html" with breadcrumb=breadcrumb %}
+
+<h1 class="text-xl font-semibold mb-2">
+  Category: {{ category.name|default:category.slug }}
+</h1>
+
+{% include "storefront/_partials_sortbar.html" %}
+
+<div class="grid gap-4 grid-cols-2 md:grid-cols-4">
+  {% for p in page_obj %}
+    <a href="{% url 'storefront:product_detail' slug=p.slug %}" class="block p-3 bg-white rounded shadow">
+      {% with m=p.media.all|first %}
+        {% if m %}
+          {% if m.image %}
+            <img src="{{ m.image.url }}" alt="{{ p.title }}" class="h-40 w-full object-cover rounded mb-2">
+          {% elif m.file %}
+            <img src="{{ m.file.url }}" alt="{{ p.title }}" class="h-40 w-full object-cover rounded mb-2">
+          {% elif m.url %}
+            <img src="{{ m.url }}" alt="{{ p.title }}" class="h-40 w-full object-cover rounded mb-2">
+          {% else %}
+            <img src="{% static 'img/placeholder.svg' %}" alt="" class="h-40 w-full object-cover rounded mb-2">
+          {% endif %}
+        {% else %}
+          <img src="{% static 'img/placeholder.svg' %}" alt="" class="h-40 w-full object-cover rounded mb-2">
+        {% endif %}
+      {% endwith %}
+      <div class="font-medium line-clamp-2">{{ p.title }}</div>
+      {% with v=p.variants.all|first %}
+        {% if v %}<div class="text-sm text-gray-600">{{ v.price_base|money:v.currency }}</div>{% endif %}
+      {% endwith %}
+    </a>
+  {% empty %}
+    <p>No products in this category.</p>
+  {% endfor %}
+</div>
+
+{% include "storefront/_partials_pagination.html" %}
+{% endblock %}

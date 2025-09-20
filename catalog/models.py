@@ -71,6 +71,10 @@ class Product(TimeStampedModel):
     slug = models.SlugField(max_length=255, unique=True, blank=True)
     description = models.TextField(blank=True)
     brand = models.CharField(max_length=100, blank=True, db_index=True)
+    is_recommended = models.BooleanField(default=False, db_index=True)
+    is_popular = models.BooleanField(default=False, db_index=True)
+    is_handpicked = models.BooleanField(default=False, db_index=True)
+    home_rank = models.PositiveIntegerField(default=1000, db_index=True)
 
     # New: real taxonomy (FKs). Keep nullable for easy backfill; you can make non-null later.
     category = models.ForeignKey(

@@ -1,0 +1,118 @@
+{% extends "storefront/_base.html" %}
+{% load static money %}
+
+{# ---------- JSON-LD: ItemList with 'url' for sections/see-all ---------- #}
+{% block jsonld %}
+{% if sections %}
+  {% for sec in sections %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "{{ sec.title|escapejs }}",
+    "url": "{% url 'storefront:home' %}?view={{ sec.key }}",
+    "itemListElement": [
+      {% for p in sec.qs %}
+      { "@type": "ListItem", "position": {{ forloop.counter }}, "url": "{% url 'storefront:product_detail' slug=p.slug %}" }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ]
+  }
+  </script>
+  {% endfor %}
+{% elif page_obj %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "{{ rail_title|default:'Products'|escapejs }}",
+    "url": "{{ seo.canonical|default:request.build_absolute_uri }}",
+    "itemListElement": [
+      {% for p in page_obj %}
+      { "@type": "ListItem", "position": {{ forloop.counter0|add:page_obj.start_index }}, "url": "{% url 'storefront:product_detail' slug=p.slug %}" }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ]
+  }
+  </script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if single_rail %}
+  <h1 class="text-2xl font-semibold mb-4">{{ rail_title }}</h1>
+  <div class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+    {% for p in page_obj %}
+      {% include "storefront/_partials_product_card.html" %}
+    {% empty %}
+      <p class="text-gray-500">No products yet.</p>
+    {% endfor %}
+  </div>
+  {% include "storefront/_partials_pagination.html" %}
+{% else %}
+  {% for sec in sections %}
+    <section class="mb-10">
+      <div class="flex items-baseline justify-between mb-4">
+        <h2 class="text-2xl font-semibold">{{ sec.title }}</h2>
+        <a href="{% url 'storefront:home' %}?view={{ sec.key }}" class="text-sm underline text-gray-600">See all</a>
+      </div>
+
+      <div class="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {% for p in sec.qs %}
+          {% include "storefront/_partials_product_card.html" %}
+        {% empty %}
+          <p class="text-gray-500">Nothing here yet.</p>
+        {% endfor %}
+      </div>
+    </section>
+  {% empty %}
+    <p class="text-gray-500">No sections yet—toggle flags on some products in the dashboard.</p>
+  {% endfor %}
+{% endif %}
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function(){
+  // Countdown (per product: created_at + 48h)
+  function pad(n){return n.toString().padStart(2,'0')}
+  function fmt(ms){
+    const t=Math.max(0,Math.floor(ms/1000));const d=Math.floor(t/86400);
+    const h=Math.floor((t%86400)/3600),m=Math.floor((t%3600)/60),s=t%60;
+    return (d>0?d+'d ':'')+pad(h)+':'+pad(m)+':'+pad(s);
+  }
+  function parseISO(s){const t=Date.parse(s);return isNaN(t)?null:t}
+
+  document.querySelectorAll('.countdown').forEach(el=>{
+    const iso=el.getAttribute('data-deadline');
+    const off=(parseInt(el.getAttribute('data-offset-seconds')||'172800',10))*1000;
+    let end=parseISO(iso); end = (end===null?Date.now():end)+off;
+    const wrap=el.closest('.countdown-wrap');
+    const tick=()=>{const left=end-Date.now();
+      if(left<=0){el.textContent='Ended';wrap&&wrap.classList.add('text-gray-400');return clearInterval(iv)}
+      el.textContent=fmt(left);
+    };
+    tick(); const iv=setInterval(tick,1000);
+  });
+
+  // Share
+  async function copy(t){try{await navigator.clipboard.writeText(t);return true}catch{return false}}
+  document.addEventListener('click', async e=>{
+    const btn=e.target.closest('button[data-share-url]'); if(!btn) return;
+    e.preventDefault();
+    const url=new URL(btn.getAttribute('data-share-url'),window.location.origin).toString();
+    const title=btn.getAttribute('data-share-title')||document.title;
+    if(navigator.share){ try{await navigator.share({title,url})}catch(_){}} else {
+      const ok=await copy(url); const prev=btn.textContent; btn.textContent=ok?'Copied!':'Copy failed';
+      setTimeout(()=>btn.textContent=prev,1200);
+    }
+  });
+
+  // Add-to-cart optimistic feedback
+  document.addEventListener('submit', e=>{
+    const form=e.target.closest('form.add-to-cart-form'); if(!form) return;
+    const btn=form.querySelector('.add-to-cart-btn'); if(!btn) return;
+    btn.dataset.prev=btn.textContent; btn.textContent='Adding…'; btn.disabled=true;
+    setTimeout(()=>{ btn.textContent='Added!'; setTimeout(()=>{ btn.textContent=btn.dataset.prev||'Add to cart'; btn.disabled=false;},900); },800);
+  });
+})();
+</script>
+{% endblock %}

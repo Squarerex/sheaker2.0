@@ -1,0 +1,11 @@
+{% if page_obj.paginator.num_pages > 1 %}
+  <div class="mt-4 flex items-center gap-2">
+    {% if page_obj.has_previous %}
+      <a class="px-3 py-1 border rounded" href="?page={{ page_obj.previous_page_number }}{% if sort_key %}&sort={{ sort_key }}{% endif %}">Prev</a>
+    {% endif %}
+    <span class="text-sm">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a class="px-3 py-1 border rounded" href="?page={{ page_obj.next_page_number }}{% if sort_key %}&sort={{ sort_key }}{% endif %}">Next</a>
+    {% endif %}
+  </div>
+{% endif %}

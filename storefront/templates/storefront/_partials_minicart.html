@@ -1,0 +1,40 @@
+{% load money %}
+<div id="mini-cart" data-count="{{ cart.total_qty|default:0 }}">
+  {% if cart.is_empty %}
+    <div class="p-3 text-sm text-gray-600">Your cart is empty.</div>
+  {% else %}
+    <ul class="max-h-64 overflow-auto divide-y">
+      {% for line in cart %}
+      <li class="p-3 flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <div class="text-sm font-medium truncate">
+            <a class="underline" href="{% url 'storefront:product_detail' slug=line.product.slug %}">{{ line.product.title }}</a>
+          </div>
+          <div class="text-xs text-gray-600 truncate">
+            {% if line.variant.attributes %}{{ line.variant.attributes }}{% else %}#{{ line.variant.id }}{% endif %}
+          </div>
+          <div class="text-xs mt-1">
+            {{ line.qty }} × {{ line.unit_price|money:line.variant.currency }}
+          </div>
+        </div>
+        <div class="text-sm font-semibold shrink-0">{{ line.line_total|money:line.variant.currency }}</div>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="p-3 border-t flex items-center justify-between">
+      <div class="text-sm">Subtotal</div>
+      <div class="text-sm font-bold">
+        {# Take currency from the first iterated line #}
+        {% for line in cart %}
+          {% if forloop.first %}
+            {{ cart.total_price|money:line.variant.currency }}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <div class="p-3 flex gap-2">
+      <a href="{% url 'storefront:cart_detail' %}" class="px-3 py-2 border rounded w-full text-center">View cart</a>
+      <a href="{% url 'storefront:checkout_start' %}" class="px-3 py-2 bg-black text-white rounded w-full text-center">Checkout</a>
+    </div>
+  {% endif %}
+</div>

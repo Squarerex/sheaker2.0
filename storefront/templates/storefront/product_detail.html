@@ -1,0 +1,240 @@
+{% extends "storefront/_base.html" %}
+{% load static money %}
+
+{% block meta_title %}{{ seo.title }} – Sheaker{% endblock %}
+{% block meta_description %}{{ seo.description }}{% endblock %}
+
+{# ---------- JSON-LD: Product + BreadcrumbList (uses breadcrumb3 triples) ---------- #}
+{% block jsonld %}
+{# Product #}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "{{ product.title|escapejs }}",
+  "description": "{{ seo.description|escapejs }}",
+  {% if primary_image_url %}
+  "image": ["{{ primary_image_url }}"],
+  {% endif %}
+  "sku": "{{ variant.sku|default_if_none:''|escapejs }}",
+  "url": "{{ seo.canonical|default:request.build_absolute_uri }}",
+  {% if offers and offers|length > 1 %}
+    "offers": {
+      "@type": "AggregateOffer",
+      "priceCurrency": "{{ currency }}",
+      "lowPrice": "{{ min_price }}",
+      "highPrice": "{{ max_price }}",
+      "offerCount": "{{ offers|length }}",
+      "offers": [
+        {% for o in offers %}
+        {
+          "@type": "Offer",
+          "sku": "{{ o.sku|escapejs }}",
+          "price": "{{ o.price }}",
+          "priceCurrency": "{{ o.priceCurrency }}",
+          "availability": "{{ o.availability }}",
+          "itemCondition": "https://schema.org/NewCondition",
+          "url": "{{ o.url }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]
+    }
+  {% else %}
+    "offers": {
+      "@type": "Offer",
+      "priceCurrency": "{{ currency }}",
+      "price": "{{ min_price }}",
+      "availability": "{{ offers.0.availability|default:'https://schema.org/InStock' }}",
+      "itemCondition": "https://schema.org/NewCondition",
+      "url": "{{ seo.canonical|default:request.build_absolute_uri }}"
+    }
+  {% endif %}
+}
+</script>
+
+{# BreadcrumbList uses breadcrumb3 (always triples) #}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {% for label, urlname, arg in breadcrumb3 %}
+      {% if urlname %}
+        {
+          "@type": "ListItem",
+          "position": {{ forloop.counter }},
+          "name": "{{ label|escapejs }}",
+          "item": "{% if arg %}{% url urlname arg %}{% else %}{% url urlname %}{% endif %}"
+        }{% if not forloop.last %},{% endif %}
+      {% else %}
+        {
+          "@type": "ListItem",
+          "position": {{ forloop.counter }},
+          "name": "{{ label|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+      {% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+{% include "storefront/_partials_breadcrumb.html" with breadcrumb=breadcrumb %}
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+  {# --------- Gallery --------- #}
+  <div>
+    {% with main=product.media.all|first %}
+      {% if main %}
+        {% if main.image %}
+          <img src="{{ main.image.url }}" alt="{{ product.title }}" class="w-full rounded shadow">
+        {% elif main.file %}
+          <img src="{{ main.file.url }}" alt="{{ product.title }}" class="w-full rounded shadow">
+        {% elif main.url %}
+          <img src="{{ main.url }}" alt="{{ product.title }}" class="w-full rounded shadow">
+        {% else %}
+          <img src="{% static 'img/placeholder.svg' %}" alt="" class="w-full rounded shadow">
+        {% endif %}
+      {% else %}
+        <img src="{% static 'img/placeholder.svg' %}" alt="" class="w-full rounded shadow">
+      {% endif %}
+    {% endwith %}
+    {# thumbs #}
+    {% if product.media.all|length > 1 %}
+      <div class="mt-3 grid grid-cols-5 gap-2">
+        {% for m in product.media.all|slice:":5" %}
+          {% if m.image %}
+            <img src="{{ m.image.url }}" alt="" class="w-full h-20 object-cover rounded border">
+          {% elif m.file %}
+            <img src="{{ m.file.url }}" alt="" class="w-full h-20 object-cover rounded border">
+          {% elif m.url %}
+            <img src="{{ m.url }}" alt="" class="w-full h-20 object-cover rounded border">
+          {% endif %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  {# --------- Info / Purchase --------- #}
+  <div>
+    <h1 class="text-2xl font-semibold mb-2">{{ product.title }}</h1>
+
+    {# rating summary if present #}
+    {% if agg_rating %}
+      <div class="mb-2 text-sm text-gray-700">
+        ⭐ {{ agg_rating.ratingValue }} / 5 • {{ agg_rating.reviewCount }} review{{ agg_rating.reviewCount|pluralize }}
+      </div>
+    {% endif %}
+
+    {# price #}
+    <div class="text-xl font-bold mb-3">
+      {% if variants|length > 1 and min_price != max_price %}
+        {{ min_price|money:currency }} – {{ max_price|money:currency }}
+      {% elif variant %}
+        {{ variant.price_base|money:variant.currency }}
+      {% else %}
+        {{ min_price|money:currency }}
+      {% endif %}
+    </div>
+
+    {# availability for selected variant #}
+    <div class="mb-3 text-sm">
+      <span id="selected-stock"
+            class="inline-flex items-center rounded px-2 py-0.5 text-xs {% if current_in_stock %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
+        {% if current_in_stock %}In-Stock{% else %}Out-of-Stock{% endif %}
+      </span>
+    </div>
+
+    {# variant select with badges (drives live JS update) #}
+    {% if variant_rows %}
+      <label for="variant" class="block text-sm font-medium mb-1">Choose an option</label>
+      <select id="variant" name="variant" class="w-full border rounded p-2 mb-3">
+        {% for row in variant_rows %}
+          <option value="{{ row.id }}"
+                  {% if variant and row.id == variant.id %}selected{% endif %}
+                  data-instock="{{ row.in_stock|yesno:'1,0' }}"
+                  data-price="{{ row.price }}"
+                  data-currency="{{ row.currency }}">
+            {{ row.title }} – {{ row.price|money:row.currency }}{% if row.in_stock %} (In-Stock){% else %} (Out-of-Stock){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+    {% endif %}
+
+    {# add to cart #}
+    <form class="flex items-end gap-3" method="post" action="{% url 'storefront:cart_add' %}" data-ajax="cart" data-redirect="">
+      {% csrf_token %}
+      <input type="hidden" name="variant_id" id="variant_id" value="{{ variant.id }}">
+      <div>
+        <label for="qty" class="block text-sm font-medium">Qty</label>
+        <input id="qty" name="qty" type="number" value="1" min="1" class="w-24 border rounded p-2">
+      </div>
+      <button type="submit" class="add-to-cart-btn px-4 py-2 bg-black text-white rounded">
+        Add to cart
+      </button>
+      <button type="button"
+              class="px-4 py-2 border rounded"
+              data-share-url="{% url 'storefront:product_detail' slug=product.slug %}"
+              data-share-title="{{ product.title }}">
+        Share
+      </button>
+    </form>
+
+    {% if product.description %}
+      <div class="prose max-w-none mt-6 text-sm text-gray-800 whitespace-pre-line">
+        {{ product.description }}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function(){
+  // util: money formatting (simple)
+  function money(amount, currency){ try{
+    return new Intl.NumberFormat(undefined,{style:'currency',currency:currency}).format(parseFloat(amount||0));
+  }catch(_){return amount+' '+(currency||'');} }
+
+  // Live update when variant changes
+  const select = document.getElementById('variant');
+  const hidden = document.getElementById('variant_id');
+  const stockEl = document.getElementById('selected-stock');
+
+  function refreshForSelected(){
+    if(!select) return;
+    const opt = select.options[select.selectedIndex];
+    if(!opt) return;
+    // sync hidden
+    if(hidden) hidden.value = opt.value;
+
+    // stock badge
+    const inStock = opt.getAttribute('data-instock') === '1';
+    stockEl.textContent = inStock ? 'In-Stock' : 'Out-of-Stock';
+    stockEl.classList.toggle('bg-green-100', inStock);
+    stockEl.classList.toggle('text-green-700', inStock);
+    stockEl.classList.toggle('bg-red-100', !inStock);
+    stockEl.classList.toggle('text-red-700', !inStock);
+  }
+
+  if(select){
+    select.addEventListener('change', refreshForSelected);
+    refreshForSelected();
+  }
+
+  // Share (fallback to copy)
+  async function copy(t){try{await navigator.clipboard.writeText(t);return true}catch{return false}}
+  document.addEventListener('click', async e=>{
+    const btn=e.target.closest('button[data-share-url]'); if(!btn) return;
+    const url=new URL(btn.getAttribute('data-share-url'),window.location.origin).toString();
+    const title=btn.getAttribute('data-share-title')||document.title;
+    if(navigator.share){ try{await navigator.share({title,url})}catch(_){}} else {
+      const ok=await copy(url); const prev=btn.textContent; btn.textContent=ok?'Copied!':'Copy failed';
+      setTimeout(()=>btn.textContent=prev,1200);
+    }
+  });
+})();
+</script>
+{% endblock %}

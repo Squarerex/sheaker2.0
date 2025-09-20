@@ -1,0 +1,68 @@
+{% extends "storefront/_base.html" %}
+{% load money %}
+{% block meta_title %}Your Cart — Sheaker{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-semibold mb-4">Your Cart</h1>
+
+{% if cart.is_empty %}
+  <p>Your cart is empty.</p>
+{% else %}
+  <table class="w-full bg-white rounded shadow">
+    <thead>
+      <tr class="text-left border-b">
+        <th class="p-3">Product</th>
+        <th class="p-3">Variant</th>
+        <th class="p-3">Qty</th>
+        <th class="p-3">Unit</th>
+        <th class="p-3">Total</th>
+        <th class="p-3"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in cart %}
+      <tr class="border-b">
+        <td class="p-3">
+          <a href="{% url 'storefront:product_detail' slug=line.product.slug %}" class="underline">
+            {{ line.product.title }}
+          </a>
+        </td>
+        <td class="p-3">
+          {% if line.variant.attributes %}{{ line.variant.attributes }}{% else %}#{{ line.variant.id }}{% endif %}
+        </td>
+        <td class="p-3">
+          <form action="{% url 'storefront:cart_update' %}" method="post" class="flex items-center gap-2" data-ajax="cart">
+            {% csrf_token %}
+            <input type="hidden" name="variant_id" value="{{ line.variant.id }}">
+            <input type="number" name="qty" value="{{ line.qty }}" min="0" class="border rounded p-1 w-20">
+            <button class="px-2 py-1 border rounded">Update</button>
+          </form>
+        </td>
+        <td class="p-3">{{ line.unit_price|money:line.variant.currency }}</td>
+        <td class="p-3 font-medium">{{ line.line_total|money:line.variant.currency }}</td>
+        <td class="p-3">
+          <form action="{% url 'storefront:cart_remove' %}" method="post" data-ajax="cart">
+            {% csrf_token %}
+            <input type="hidden" name="variant_id" value="{{ line.variant.id }}">
+            <button class="text-red-600 underline">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="p-3 text-right font-medium">Subtotal</td>
+        <td class="p-3 font-bold">
+          {{ cart.total_price|money:cart_currency }}
+        </td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="mt-4 flex gap-3">
+    <a href="{% url 'storefront:home' %}" class="px-4 py-2 border rounded">Continue shopping</a>
+    <a href="{% url 'storefront:checkout_start' %}" class="px-4 py-2 bg-black text-white rounded">Proceed to checkout</a>
+  </div>
+{% endif %}
+{% endblock %}

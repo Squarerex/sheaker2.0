@@ -1,0 +1,141 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+
+  {# JSON-LD product/page data goes here from child templates #}
+  {% block jsonld %}{% endblock %}
+
+  <title>{% block meta_title %}{{ seo.title|default:"Store" }}{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}{{ seo.description|default:"" }}{% endblock %}" />
+  <link rel="canonical" href="{{ seo.canonical|default:request.build_absolute_uri }}" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="{% block og_title %}{{ seo.title|default:"Store" }}{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}{{ seo.description|default:"" }}{% endblock %}">
+  {% if seo.og_image %}<meta property="og:image" content="{{ seo.og_image }}">{% endif %}
+  <meta property="og:url" content="{{ seo.canonical|default:request.build_absolute_uri }}">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tailwind CDN (dev only). Replace with your compiled CSS in production. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Fallback so .hidden works even if Tailwind fails -->
+  <style>.hidden{display:none}</style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-gray-50">
+  <header class="p-4 bg-white shadow">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <a href="{% url 'storefront:home' %}" class="font-semibold">Sheaker</a>
+
+      <!-- Cart link (navigates) + caret button (opens mini-cart) -->
+      <div class="relative flex items-center gap-2">
+        <a id="cart-link" href="{% url 'storefront:cart_detail' %}" class="relative px-3 py-1 border rounded">
+          Cart
+          <span id="mini-cart-badge" class="ml-1 text-sm text-gray-500">({{ cart.total_qty|default:0 }})</span>
+        </a>
+
+        <button id="mini-cart-toggle" type="button" class="px-2 py-1 border rounded" aria-label="Open mini cart" aria-expanded="false">▾</button>
+
+        <div
+          id="mini-cart-panel"
+          class="hidden opacity-0 transition-opacity duration-150 ease-out absolute right-0 top-full mt-2 w-80 bg-white border shadow-xl rounded overflow-hidden z-50"
+        >
+          <div class="p-3 text-sm text-gray-500">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  {% if messages %}
+    <div class="max-w-6xl mx-auto p-4">
+      {% for message in messages %}
+        <div class="mb-2 p-3 rounded {{ message.tags }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <main class="max-w-6xl mx-auto p-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block extra_body %}{% endblock %}
+
+  <script>
+  (function(){
+    const panel = document.getElementById('mini-cart-panel');
+    const badge = document.getElementById('mini-cart-badge');
+    const toggleBtn = document.getElementById('mini-cart-toggle');
+
+    function openPanel() {
+      panel.classList.remove('hidden');
+      requestAnimationFrame(() => panel.classList.remove('opacity-0'));
+      toggleBtn.setAttribute('aria-expanded', 'true');
+    }
+    function closePanel() {
+      panel.classList.add('opacity-0');
+      setTimeout(() => panel.classList.add('hidden'), 150); // match duration-150
+      toggleBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    async function refreshMiniCart() {
+      try {
+        const resp = await fetch("{% url 'storefront:cart_mini' %}", {
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        if (!resp.ok) {
+          panel.innerHTML = '<div class="p-3 text-sm text-red-600">Could not load mini-cart. <a class="underline" href="{% url "storefront:cart_detail" %}">Open cart</a></div>';
+          return;
+        }
+        const data = await resp.json();
+        panel.innerHTML = data.html;
+        if (badge) badge.textContent = `(${data.count || 0})`;
+
+        // Close panel when any link inside is clicked
+        panel.querySelectorAll('a').forEach(a => a.addEventListener('click', () => closePanel()));
+      } catch (e) {
+        panel.innerHTML = '<div class="p-3 text-sm text-red-600">Failed to load mini-cart. <a class="underline" href="{% url "storefront:cart_detail" %}">Open cart</a></div>';
+      }
+    }
+
+    // Outside click closes panel
+    document.addEventListener('click', (e) => {
+      if (!panel.contains(e.target) && !toggleBtn.contains(e.target)) closePanel();
+    });
+
+    // Caret toggles dropdown (main Cart link navigates normally)
+    toggleBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (panel.classList.contains('hidden')) {
+        openPanel();
+        await refreshMiniCart();
+      } else {
+        closePanel();
+      }
+    });
+
+    // Intercept cart forms (add/update/remove) marked with data-ajax="cart"
+    document.addEventListener('submit', async (e) => {
+      const form = e.target;
+      if (form.matches('form[data-ajax="cart"]')) {
+        e.preventDefault();
+        const formData = new FormData(form);
+        await fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+        await refreshMiniCart();
+        const redir = form.getAttribute('data-redirect');
+        if (redir) window.location.href = redir;
+      }
+    });
+
+    // Keep the badge in sync on load
+    refreshMiniCart();
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+{% load static money %}
+
+<div class="p-4 bg-white rounded-2xl shadow-lg transition-transform duration-200 ease-out hover:-translate-y-1 hover:shadow-2xl group">
+  <a href="{% url 'storefront:product_detail' slug=p.slug %}" class="block rounded-lg overflow-hidden">
+    {% with m=p.media.all|first %}
+      {% if m %}
+        {% if m.image %}
+          <img src="{{ m.image.url }}" alt="{{ p.title }}" class="h-60 md:h-64 w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]">
+        {% elif m.file %}
+          <img src="{{ m.file.url }}" alt="{{ p.title }}" class="h-60 md:h-64 w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]">
+        {% elif m.url %}
+          <img src="{{ m.url }}" alt="{{ p.title }}" class="h-60 md:h-64 w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]">
+        {% else %}
+          <img src="{% static 'img/placeholder.svg' %}" alt="" class="h-60 md:h-64 w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]">
+        {% endif %}
+      {% else %}
+        <img src="{% static 'img/placeholder.svg' %}" alt="" class="h-60 md:h-64 w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]">
+      {% endif %}
+    {% endwith %}
+  </a>
+
+  <a href="{% url 'storefront:product_detail' slug=p.slug %}" class="block mt-3">
+    <div class="font-semibold text-lg leading-snug line-clamp-2">{{ p.title }}</div>
+  </a>
+
+  <div class="mt-3 flex items-start justify-between gap-4">
+    <div class="min-w-0 flex-1">
+      {% with v=p.variants.all|first %}
+        {% if v %}<div class="text-base text-gray-800 font-medium">{{ v.price_base|money:v.currency }}</div>{% endif %}
+      {% endwith %}
+
+      {% with rating=p.rating_avg|default:0 %}
+      <div class="mt-1 text-sm leading-none" aria-label="Rating {{ rating }} out of 5">
+        {% for i in "12345"|make_list %}
+          <span class="{% if forloop.counter <= rating %}text-yellow-500{% else %}text-gray-300{% endif %}">★</span>
+        {% endfor %}
+      </div>
+      {% endwith %}
+
+      <div class="mt-1 text-xs text-gray-600 flex items-center gap-1 countdown-wrap" title="This product may be gone once the timer hits zero">
+        <span aria-hidden="true">🕒</span>
+        <span class="countdown" data-deadline="{{ p.created_at|date:'c' }}" data-offset-seconds="172800">--:--:--</span>
+      </div>
+    </div>
+
+    <div class="flex-shrink-0 flex flex-col gap-2">
+      {% with v=p.variants.all|first %}
+      {% if v %}
+        <form action="{% url 'storefront:cart_add' %}" method="post" class="add-to-cart-form" data-ajax="cart" data-redirect="">
+          {% csrf_token %}
+          <input type="hidden" name="variant_id" value="{{ v.id }}">
+          <input type="hidden" name="qty" value="1">
+          <button type="submit"
+                  class="add-to-cart-btn px-3 py-2 bg-black text-white rounded text-sm font-medium
+                         transition duration-200 ease-out hover:shadow-md hover:-translate-y-0.5 active:translate-y-0
+                         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black/30">
+            Add to cart
+          </button>
+        </form>
+      {% else %}
+        <a href="{% url 'storefront:product_detail' slug=p.slug %}"
+           class="px-3 py-2 bg-black text-white rounded text-sm font-medium text-center
+                  transition duration-200 ease-out hover:shadow-md hover:-translate-y-0.5 active:translate-y-0
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black/30">
+          View
+        </a>
+      {% endif %}
+      {% endwith %}
+
+      <button type="button"
+              class="px-3 py-2 border rounded text-sm font-medium
+                     transition duration-200 ease-out hover:shadow-sm hover:-translate-y-0.5 active:translate-y-0 hover:bg-gray-50
+                     focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300"
+              data-share-url="{% url 'storefront:product_detail' slug=p.slug %}"
+              data-share-title="{{ p.title|escape }}">
+        Share
+      </button>
+    </div>
+  </div>
+</div>

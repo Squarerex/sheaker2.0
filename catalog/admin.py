@@ -44,6 +44,28 @@ class InventoryInline(admin.StackedInline):
     extra = 0
 
 
+# -------- Actions --------
+def mark_recommended(modeladmin, request, queryset):
+    queryset.update(is_recommended=True)
+
+
+mark_recommended.short_description = "Mark as Recommended"
+
+
+def mark_popular(modeladmin, request, queryset):
+    queryset.update(is_popular=True)
+
+
+mark_popular.short_description = "Mark as Most Popular"
+
+
+def mark_handpicked(modeladmin, request, queryset):
+    queryset.update(is_handpicked=True)
+
+
+mark_handpicked.short_description = "Mark as Handpicked"
+
+
 # -------- ModelAdmins --------
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -53,17 +75,30 @@ class ProductAdmin(admin.ModelAdmin):
         "category",
         "subcategory",
         "is_active",
-        "created_at",
+        "is_recommended",
+        "is_popular",
+        "is_handpicked",
+        "home_rank",
+        "updated_at",
     )
-    list_filter = ("is_active", "brand", "category", "subcategory")
-    # NOTE: if Variant has no related_name="variants", change to "variant_set__sku"
+    list_filter = (
+        "is_active",
+        "brand",
+        "category",
+        "subcategory",
+        "is_recommended",
+        "is_popular",
+        "is_handpicked",
+    )
+    list_editable = ("is_recommended", "is_popular", "is_handpicked", "home_rank")
     search_fields = ("title", "slug", "variants__sku", "brand")
     inlines = [VariantInline, MediaInlineForProduct]
     prepopulated_fields = {"slug": ("title",)}
     autocomplete_fields = ("category", "subcategory")
     list_select_related = ("category", "subcategory")
-    ordering = ("-created_at",)
+    ordering = ("home_rank", "-updated_at")
     list_per_page = 50
+    actions = [mark_recommended, mark_popular, mark_handpicked]
 
 
 @admin.register(Variant)
