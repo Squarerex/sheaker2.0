@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3">Payment Canceled</h1>
+<p>Your payment was canceled. You can try again or update your cart.</p>
+<a class="btn btn-secondary" href="{% url 'storefront:cart_detail' %}">Back to cart</a>
+{% endblock %}

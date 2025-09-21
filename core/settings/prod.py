@@ -1,6 +1,6 @@
 # ruff: noqa: F405
 import os
-
+ALLOWED_HOSTS: list[str] = []
 from .base import *  # noqa: F401,F403
 
 ENV_NAME = "prod"

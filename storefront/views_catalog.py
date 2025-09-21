@@ -2,24 +2,37 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Optional, Type
 
 from django.core.paginator import Paginator
-from django.db.models import Min, Prefetch
+from django.db import connection
+from django.db.models import Count, Min, Prefetch, Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.template.loader import render_to_string
 
 from catalog.models import Inventory, Product, Variant
 
 try:
+    from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+
+    POSTGRES_SEARCH_AVAILABLE = True
+except ImportError:
+    POSTGRES_SEARCH_AVAILABLE = False
+
+try:
     from catalog.models import Category  # if your project has Category
+    CATEGORY_MODEL: Optional[Type] = Category
 except Exception:
-    Category = None
+    CATEGORY_MODEL = None
 
 from providers.models import SupplierProduct
 
 try:
     from reviews.models import Review
+    REVIEW_MODEL: Optional[Type] = Review
 except Exception:
-    Review = None
+    REVIEW_MODEL = None
 
 
 # ---------- helpers ----------
@@ -39,7 +52,7 @@ def _sorted_paginated_products(request, base_qs, per_page: int = 24):
         "new": ("-id", "Newest"),
         "price_asc": ("min_price", "Price: Low → High"),
         "price_desc": ("-min_price", "Price: High → Low"),
-        "title": ("title", "Title A–Z"),
+        "title": ("title", "Title A—Z"),
     }
     DEFAULT_SORT = "new"
 
@@ -84,7 +97,7 @@ def home(request):
         paginator = Paginator(qs, 24)
         page_obj = paginator.get_page(request.GET.get("page") or 1)
         seo = {
-            "title": f"{RAILS[view]['title']} – Store",
+            "title": f"{RAILS[view]['title']} — Store",
             "description": f"Browse all {RAILS[view]['title'].lower()} products.",
             "canonical": request.build_absolute_uri(),
         }
@@ -145,7 +158,7 @@ def category_listing(request, slug):
     breadcrumb_ui = [("Home", "storefront:home"), (slug, None)]
     breadcrumb3 = [("Home", "storefront:home", None), (slug, None, None)]
 
-    if Category is None:
+    if CATEGORY_MODEL is None:
         base_qs = _base_product_qs()
         page_obj, sort_key, SORT_OPTIONS = _sorted_paginated_products(request, base_qs)
         seo = {
@@ -168,7 +181,7 @@ def category_listing(request, slug):
             },
         )
 
-    category = get_object_or_404(Category, slug=slug)
+    category = get_object_or_404(CATEGORY_MODEL, slug=slug)
     base_qs = _base_product_qs().filter(category=category)
     page_obj, sort_key, SORT_OPTIONS = _sorted_paginated_products(request, base_qs)
 
@@ -299,30 +312,29 @@ def product_detail(request, slug):
 
     # Optional reviews (safe fallback)
     agg_rating, recent_reviews = None, []
-    try:
-        from reviews.models import Review
+    if REVIEW_MODEL:
+        try:
+            qsr = REVIEW_MODEL.objects.filter(product=product, is_published=True)
+            count = qsr.count()
+            if count:
+                from django.db import models
 
-        qsr = Review.objects.filter(product=product, is_published=True)
-        count = qsr.count()
-        if count:
-            from django.db import models
-
-            avg = qsr.aggregate(avg=models.Avg("rating"))["avg"] or 0
-            agg_rating = {"ratingValue": round(float(avg), 2), "reviewCount": count}
-            for r in qsr.order_by("-created_at")[:3]:
-                recent_reviews.append(
-                    {
-                        "author_name": getattr(r, "author_name", "Anonymous"),
-                        "title": getattr(r, "title", "") or "Review",
-                        "body": getattr(r, "body", "") or "",
-                        "rating": int(getattr(r, "rating", 0) or 0),
-                        "created": r.created_at.isoformat()
-                        if getattr(r, "created_at", None)
-                        else "",
-                    }
-                )
-    except Exception:
-        pass
+                avg = qsr.aggregate(avg=models.Avg("rating"))["avg"] or 0
+                agg_rating = {"ratingValue": round(float(avg), 2), "reviewCount": count}
+                for r in qsr.order_by("-created_at")[:3]:
+                    recent_reviews.append(
+                        {
+                            "author_name": getattr(r, "author_name", "Anonymous"),
+                            "title": getattr(r, "title", "") or "Review",
+                            "body": getattr(r, "body", "") or "",
+                            "rating": int(getattr(r, "rating", 0) or 0),
+                            "created": r.created_at.isoformat()
+                            if getattr(r, "created_at", None)
+                            else "",
+                        }
+                    )
+        except Exception:
+            pass
 
     seo = {
         "title": product.title,
@@ -353,3 +365,309 @@ def product_detail(request, slug):
             "recent_reviews": recent_reviews,
         },
     )
+
+
+def search_view(request):
+    """
+    Advanced search with filtering, sorting, and pagination
+    Auto-detects PostgreSQL for enhanced search capabilities
+    """
+    query = request.GET.get("q", "").strip()
+
+    # Start with base queryset
+    products = _base_product_qs()
+
+    # Smart text search - PostgreSQL full-text search or fallback
+    if query:
+        # Check if we can use PostgreSQL full-text search
+        is_postgres = connection.vendor == "postgresql" and POSTGRES_SEARCH_AVAILABLE
+
+        if is_postgres:
+            try:
+                # Advanced PostgreSQL full-text search with ranking
+                search_vector = (
+                    SearchVector("title", weight="A")
+                    + SearchVector("description", weight="B")
+                    + SearchVector("brand", weight="C")
+                )
+                search_query = SearchQuery(query)
+
+                products = (
+                    products.annotate(
+                        search=search_vector, rank=SearchRank(search_vector, search_query)
+                    )
+                    .filter(search=search_query)
+                    .order_by("-rank", "-created_at")
+                )
+
+            except Exception:
+                # Fallback if PostgreSQL search fails
+                products = products.filter(
+                    Q(title__icontains=query)
+                    | Q(description__icontains=query)
+                    | Q(brand__icontains=query)
+                )
+        else:
+            # SQLite/MySQL compatible search
+            products = products.filter(
+                Q(title__icontains=query)
+                | Q(description__icontains=query)
+                | Q(brand__icontains=query)
+            )
+
+    # Category filtering
+    selected_categories = request.GET.getlist("category")
+    if selected_categories:
+        products = products.filter(category__slug__in=selected_categories)
+
+    # Brand filtering
+    selected_brands = request.GET.getlist("brand")
+    if selected_brands:
+        products = products.filter(brand__in=selected_brands)
+
+    # Price range filtering
+    min_price = request.GET.get("min_price")
+    max_price = request.GET.get("max_price")
+    if min_price:
+        try:
+            min_price_decimal = Decimal(min_price)
+            products = products.filter(variants__price_base__gte=min_price_decimal)
+        except (ValueError, TypeError):
+            min_price = None
+    if max_price:
+        try:
+            max_price_decimal = Decimal(max_price)
+            products = products.filter(variants__price_base__lte=max_price_decimal)
+        except (ValueError, TypeError):
+            max_price = None
+
+    # Special filters
+    show_recommended = bool(request.GET.get("recommended"))
+    show_popular = bool(request.GET.get("popular"))
+    show_handpicked = bool(request.GET.get("handpicked"))
+
+    if show_recommended:
+        products = products.filter(is_recommended=True)
+    if show_popular:
+        products = products.filter(is_popular=True)
+    if show_handpicked:
+        products = products.filter(is_handpicked=True)
+
+    # Remove duplicates and annotate with min price for sorting
+    products = products.distinct().annotate(min_price=Min("variants__price_base"))
+
+    # Sorting
+    sort_by = request.GET.get("sort", "newest")
+    sort_options = {
+        "newest": "-created_at",
+        "price_low": "min_price",
+        "price_high": "-min_price",
+        "name": "title",
+        "popularity": ["-is_popular", "-is_recommended", "-created_at"],
+    }
+
+    if sort_by in sort_options:
+        order_by = sort_options[sort_by]
+        if isinstance(order_by, list):
+            products = products.order_by(*order_by)
+        else:
+            products = products.order_by(order_by)
+    else:
+        products = products.order_by("-created_at")
+
+    # Get filter options for sidebar (only if we have a query or other filters)
+    categories = []
+    brands = []
+
+    if (
+        query
+        or selected_categories
+        or selected_brands
+        or min_price
+        or max_price
+        or show_recommended
+        or show_popular
+        or show_handpicked
+    ):
+        # Base queryset for filters (before current filters are applied)
+        base_for_filters = _base_product_qs()
+        if query:
+            base_for_filters = base_for_filters.filter(
+                Q(title__icontains=query)
+                | Q(description__icontains=query)
+                | Q(brand__icontains=query)
+            )
+
+        # Get categories with product counts
+        if CATEGORY_MODEL:
+            categories = (
+                CATEGORY_MODEL.objects.filter(products__in=base_for_filters, is_active=True)
+                .annotate(product_count=Count("products", distinct=True))
+                .filter(product_count__gt=0)
+                .order_by("name")
+            )
+
+        # Get brands with product counts
+        brand_counts = (
+            base_for_filters.exclude(brand__isnull=True)
+            .exclude(brand__exact="")
+            .values("brand")
+            .annotate(product_count=Count("id", distinct=True))
+            .filter(product_count__gt=0)
+            .order_by("brand")
+        )
+
+        brands = [{"name": b["brand"], "product_count": b["product_count"]} for b in brand_counts]
+
+    # Pagination
+    paginator = Paginator(products, 24)
+    page_obj = paginator.get_page(request.GET.get("page", 1))
+
+    # Check if any filters are active
+    has_active_filters = bool(
+        selected_categories
+        or selected_brands
+        or min_price
+        or max_price
+        or show_recommended
+        or show_popular
+        or show_handpicked
+    )
+
+    # SEO
+    seo_title = f"Search: {query}" if query else "Search Products"
+    seo = {
+        "title": f"{seo_title} - Store",
+        "description": f"Search results for {query}" if query else "Search our product catalog",
+        "canonical": request.build_absolute_uri(),
+    }
+
+    context = {
+        "products": page_obj,
+        "page_obj": page_obj,
+        "is_paginated": page_obj.has_other_pages(),
+        "search_query": query,
+        "categories": categories,
+        "brands": brands,
+        "selected_categories": selected_categories,
+        "selected_brands": selected_brands,
+        "min_price": min_price,
+        "max_price": max_price,
+        "show_recommended": show_recommended,
+        "show_popular": show_popular,
+        "show_handpicked": show_handpicked,
+        "sort_by": sort_by,
+        "total_results": paginator.count,
+        "has_active_filters": has_active_filters,
+        "seo": seo,
+    }
+
+    return render(request, "storefront/search.html", context)
+
+
+def search_suggestions_view(request):
+    """
+    AJAX endpoint for real-time search suggestions
+    Auto-detects PostgreSQL for enhanced search capabilities
+    """
+    # Debug logging
+    print(f"Search suggestions called with headers: {dict(request.headers)}")
+    print(f"Is AJAX request: {request.headers.get('X-Requested-With') == 'XMLHttpRequest'}")
+
+    if not request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"error": "Invalid request"}, status=400)
+
+    query = request.GET.get("q", "").strip()
+    print(f"Search query: '{query}'")
+
+    if len(query) < 2:
+        return JsonResponse(
+            {
+                "html": '<div class="p-2 text-sm text-gray-500">Start typing to see suggestions...</div>'
+            }
+        )
+
+    try:
+        # Check if we can use PostgreSQL full-text search
+        is_postgres = connection.vendor == "postgresql" and POSTGRES_SEARCH_AVAILABLE
+
+        # Get product suggestions with intelligent search
+        if is_postgres:
+            try:
+                # Use PostgreSQL full-text search for suggestions
+                search_vector = SearchVector("title", weight="A") + SearchVector(
+                    "brand", weight="B"
+                )
+                search_query = SearchQuery(query)
+
+                products = (
+                    _base_product_qs()
+                    .annotate(search=search_vector, rank=SearchRank(search_vector, search_query))
+                    .filter(search=search_query)
+                    .order_by("-rank")
+                    .prefetch_related("media")[:6]
+                )
+
+            except Exception as e:
+                print(f"PostgreSQL search failed: {e}")
+                # Fallback to basic search
+                products = (
+                    _base_product_qs()
+                    .filter(Q(title__icontains=query) | Q(brand__icontains=query))
+                    .prefetch_related("media")[:6]
+                )
+        else:
+            # SQLite/MySQL compatible search
+            products = (
+                _base_product_qs()
+                .filter(Q(title__icontains=query) | Q(brand__icontains=query))
+                .prefetch_related("media")[:6]
+            )
+
+        print(f"Found {len(products)} products")
+
+        # Get brand suggestions
+        brands = (
+            Product.objects.filter(brand__icontains=query, is_active=True)
+            .exclude(brand__isnull=True)
+            .exclude(brand__exact="")
+            .values_list("brand", flat=True)
+            .distinct()[:4]
+        )
+
+        print(f"Found {len(brands)} brands")
+
+        # Get category suggestions
+        category_suggestions = []
+        if CATEGORY_MODEL:
+            category_suggestions = CATEGORY_MODEL.objects.filter(name__icontains=query, is_active=True)[
+                :4
+            ]
+
+        print(f"Found {len(category_suggestions)} categories")
+
+        # Render suggestions HTML
+        suggestions_html = render_to_string(
+            "storefront/_search_suggestions.html",
+            {
+                "query": query,
+                "products": products,
+                "brands": brands,
+                "categories": category_suggestions,
+            },
+            request=request,
+        )
+
+        print(f"Rendered HTML length: {len(suggestions_html)}")
+
+        return JsonResponse({"html": suggestions_html})
+
+    except Exception as e:
+        print(f"Search suggestions error: {e}")
+        import traceback
+
+        traceback.print_exc()
+
+        return JsonResponse(
+            {"html": '<div class="p-2 text-sm text-red-500">Error loading suggestions</div>'}
+        )

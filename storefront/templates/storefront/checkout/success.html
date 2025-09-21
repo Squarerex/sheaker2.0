@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h3">Payment Successful</h1>
+<p>Thanks! Your order is confirmed. A receipt will be sent to your email.</p>
+<a class="btn btn-primary" href="{% url 'storefront:home' %}">Continue shopping</a>
+{% endblock %}

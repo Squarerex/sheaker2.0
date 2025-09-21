@@ -1,240 +1,313 @@
 {% extends "storefront/_base.html" %}
-{% load static money %}
+{% load static money wishlist_tags %}
 
-{% block meta_title %}{{ seo.title }} – Sheaker{% endblock %}
-{% block meta_description %}{{ seo.description }}{% endblock %}
-
-{# ---------- JSON-LD: Product + BreadcrumbList (uses breadcrumb3 triples) ---------- #}
-{% block jsonld %}
-{# Product #}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Product",
-  "name": "{{ product.title|escapejs }}",
-  "description": "{{ seo.description|escapejs }}",
-  {% if primary_image_url %}
-  "image": ["{{ primary_image_url }}"],
-  {% endif %}
-  "sku": "{{ variant.sku|default_if_none:''|escapejs }}",
-  "url": "{{ seo.canonical|default:request.build_absolute_uri }}",
-  {% if offers and offers|length > 1 %}
-    "offers": {
-      "@type": "AggregateOffer",
-      "priceCurrency": "{{ currency }}",
-      "lowPrice": "{{ min_price }}",
-      "highPrice": "{{ max_price }}",
-      "offerCount": "{{ offers|length }}",
-      "offers": [
-        {% for o in offers %}
-        {
-          "@type": "Offer",
-          "sku": "{{ o.sku|escapejs }}",
-          "price": "{{ o.price }}",
-          "priceCurrency": "{{ o.priceCurrency }}",
-          "availability": "{{ o.availability }}",
-          "itemCondition": "https://schema.org/NewCondition",
-          "url": "{{ o.url }}"
-        }{% if not forloop.last %},{% endif %}
-        {% endfor %}
-      ]
-    }
-  {% else %}
-    "offers": {
-      "@type": "Offer",
-      "priceCurrency": "{{ currency }}",
-      "price": "{{ min_price }}",
-      "availability": "{{ offers.0.availability|default:'https://schema.org/InStock' }}",
-      "itemCondition": "https://schema.org/NewCondition",
-      "url": "{{ seo.canonical|default:request.build_absolute_uri }}"
-    }
-  {% endif %}
-}
-</script>
-
-{# BreadcrumbList uses breadcrumb3 (always triples) #}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    {% for label, urlname, arg in breadcrumb3 %}
-      {% if urlname %}
-        {
-          "@type": "ListItem",
-          "position": {{ forloop.counter }},
-          "name": "{{ label|escapejs }}",
-          "item": "{% if arg %}{% url urlname arg %}{% else %}{% url urlname %}{% endif %}"
-        }{% if not forloop.last %},{% endif %}
-      {% else %}
-        {
-          "@type": "ListItem",
-          "position": {{ forloop.counter }},
-          "name": "{{ label|escapejs }}"
-        }{% if not forloop.last %},{% endif %}
-      {% endif %}
-    {% endfor %}
-  ]
-}
-</script>
-{% endblock %}
+{% block title %}{{ product.title }} | {{ SITE_NAME|default:"Store" }}{% endblock %}
 
 {% block content %}
-{% include "storefront/_partials_breadcrumb.html" with breadcrumb=breadcrumb %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-  {# --------- Gallery --------- #}
-  <div>
-    {% with main=product.media.all|first %}
-      {% if main %}
-        {% if main.image %}
-          <img src="{{ main.image.url }}" alt="{{ product.title }}" class="w-full rounded shadow">
-        {% elif main.file %}
-          <img src="{{ main.file.url }}" alt="{{ product.title }}" class="w-full rounded shadow">
-        {% elif main.url %}
-          <img src="{{ main.url }}" alt="{{ product.title }}" class="w-full rounded shadow">
-        {% else %}
-          <img src="{% static 'img/placeholder.svg' %}" alt="" class="w-full rounded shadow">
-        {% endif %}
-      {% else %}
-        <img src="{% static 'img/placeholder.svg' %}" alt="" class="w-full rounded shadow">
+  {# ── Breadcrumbs ────────────────────────────────────────────── #}
+  <nav class="text-sm text-gray-500 mb-6" aria-label="Breadcrumb">
+    <ol class="inline-flex list-reset">
+      <li><a href="{% url 'storefront:home' %}" class="hover:text-gray-700">Home</a></li>
+      <li class="mx-2">/</li>
+      {% if product.category %}
+        <li><a href="{% url 'storefront:category' slug=product.category.slug %}" class="hover:text-gray-700">{{ product.category.name }}</a></li>
+        <li class="mx-2">/</li>
       {% endif %}
-    {% endwith %}
-    {# thumbs #}
-    {% if product.media.all|length > 1 %}
-      <div class="mt-3 grid grid-cols-5 gap-2">
-        {% for m in product.media.all|slice:":5" %}
-          {% if m.image %}
-            <img src="{{ m.image.url }}" alt="" class="w-full h-20 object-cover rounded border">
-          {% elif m.file %}
-            <img src="{{ m.file.url }}" alt="" class="w-full h-20 object-cover rounded border">
-          {% elif m.url %}
-            <img src="{{ m.url }}" alt="" class="w-full h-20 object-cover rounded border">
+      <li class="text-gray-800">{{ product.title }}</li>
+    </ol>
+  </nav>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+    {# ── Media gallery (safe .url access) ─────────────────────── #}
+    <section aria-labelledby="product-images">
+      <div class="bg-white rounded-2xl shadow p-4">
+        {% with pm=product.primary_media %}
+          {% if pm %}
+            {% if pm.kind == "image" and pm.image %}
+              <img src="{{ pm.image.url }}" alt="{{ pm.alt|default:product.title }}" class="w-full rounded-xl object-cover">
+            {% elif pm.kind == "external" and pm.url %}
+              <img src="{{ pm.url }}" alt="{{ pm.alt|default:product.title }}" class="w-full rounded-xl object-cover">
+            {% elif pm.kind == "video" and pm.video %}
+              <video class="w-full rounded-xl" controls preload="metadata">
+                <source src="{{ pm.video.url }}">
+                Your browser does not support the video tag.
+              </video>
+            {% else %}
+              <img src="{% static 'storefront/img/placeholder-product.png' %}" alt="{{ product.title }}" class="w-full rounded-xl object-cover">
+            {% endif %}
+          {% else %}
+            <img src="{% static 'storefront/img/placeholder-product.png' %}" alt="{{ product.title }}" class="w-full rounded-xl object-cover">
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      {% if product.media.all %}
+      <div class="mt-4 grid grid-cols-4 gap-3">
+        {% for m in product.media.all|slice:":8" %}
+          {% if m.kind == "image" and m.image %}
+            <img src="{{ m.image.url }}" alt="{{ m.alt|default:product.title }} {{ forloop.counter }}"
+                 class="rounded-lg bg-white shadow-sm object-cover w-full h-24">
+          {% elif m.kind == "external" and m.url %}
+            <img src="{{ m.url }}" alt="{{ m.alt|default:product.title }} {{ forloop.counter }}"
+                 class="rounded-lg bg-white shadow-sm object-cover w-full h-24">
+          {% elif m.kind == "video" and m.video %}
+            <video class="rounded-lg bg-white shadow-sm object-cover w-full h-24" preload="metadata">
+              <source src="{{ m.video.url }}">
+            </video>
           {% endif %}
         {% endfor %}
       </div>
-    {% endif %}
-  </div>
-
-  {# --------- Info / Purchase --------- #}
-  <div>
-    <h1 class="text-2xl font-semibold mb-2">{{ product.title }}</h1>
-
-    {# rating summary if present #}
-    {% if agg_rating %}
-      <div class="mb-2 text-sm text-gray-700">
-        ⭐ {{ agg_rating.ratingValue }} / 5 • {{ agg_rating.reviewCount }} review{{ agg_rating.reviewCount|pluralize }}
-      </div>
-    {% endif %}
-
-    {# price #}
-    <div class="text-xl font-bold mb-3">
-      {% if variants|length > 1 and min_price != max_price %}
-        {{ min_price|money:currency }} – {{ max_price|money:currency }}
-      {% elif variant %}
-        {{ variant.price_base|money:variant.currency }}
-      {% else %}
-        {{ min_price|money:currency }}
       {% endif %}
-    </div>
+    </section>
 
-    {# availability for selected variant #}
-    <div class="mb-3 text-sm">
-      <span id="selected-stock"
-            class="inline-flex items-center rounded px-2 py-0.5 text-xs {% if current_in_stock %}bg-green-100 text-green-700{% else %}bg-red-100 text-red-700{% endif %}">
-        {% if current_in_stock %}In-Stock{% else %}Out-of-Stock{% endif %}
-      </span>
-    </div>
+    {# ── Details + actions ────────────────────────────────────── #}
+    <section aria-labelledby="product-details">
+      <h1 class="text-2xl md:text-3xl font-semibold text-gray-900">{{ product.title }}</h1>
 
-    {# variant select with badges (drives live JS update) #}
-    {% if variant_rows %}
-      <label for="variant" class="block text-sm font-medium mb-1">Choose an option</label>
-      <select id="variant" name="variant" class="w-full border rounded p-2 mb-3">
-        {% for row in variant_rows %}
-          <option value="{{ row.id }}"
-                  {% if variant and row.id == variant.id %}selected{% endif %}
-                  data-instock="{{ row.in_stock|yesno:'1,0' }}"
-                  data-price="{{ row.price }}"
-                  data-currency="{{ row.currency }}">
-            {{ row.title }} – {{ row.price|money:row.currency }}{% if row.in_stock %} (In-Stock){% else %} (Out-of-Stock){% endif %}
-          </option>
-        {% endfor %}
-      </select>
-    {% endif %}
+      {% if product.brand %}
+        <p class="mt-1 text-sm text-gray-500">Brand: <span class="font-medium text-gray-700">{{ product.brand }}</span></p>
+      {% endif %}
 
-    {# add to cart #}
-    <form class="flex items-end gap-3" method="post" action="{% url 'storefront:cart_add' %}" data-ajax="cart" data-redirect="">
-      {% csrf_token %}
-      <input type="hidden" name="variant_id" id="variant_id" value="{{ variant.id }}">
-      <div>
-        <label for="qty" class="block text-sm font-medium">Qty</label>
-        <input id="qty" name="qty" type="number" value="1" min="1" class="w-24 border rounded p-2">
+      {# Price #}
+      <div class="mt-4">
+        {% if selected_variant %}
+          <div class="text-2xl font-semibold text-gray-900">
+            {{ selected_variant.price_base|money:selected_variant.currency }}
+          </div>
+        {% elif product.default_variant %}
+          <div class="text-2xl font-semibold text-gray-900">
+            {{ product.default_variant.price_base|money:product.default_variant.currency }}
+          </div>
+        {% elif product.variants.first %}
+          <div class="text-2xl font-semibold text-gray-900">
+            {{ product.variants.first.price_base|money:product.variants.first.currency }}
+          </div>
+        {% endif %}
       </div>
-      <button type="submit" class="add-to-cart-btn px-4 py-2 bg-black text-white rounded">
-        Add to cart
-      </button>
-      <button type="button"
-              class="px-4 py-2 border rounded"
-              data-share-url="{% url 'storefront:product_detail' slug=product.slug %}"
-              data-share-title="{{ product.title }}">
-        Share
-      </button>
-    </form>
 
-    {% if product.description %}
-      <div class="prose max-w-none mt-6 text-sm text-gray-800 whitespace-pre-line">
-        {{ product.description }}
+      {# ── Variant selection (require explicit choice if >1) ──── #}
+      {% with total=product.variants.count %}
+        {% if total > 1 %}
+          <div class="mt-6">
+            <h2 class="text-sm font-medium text-gray-900">Select Option</h2>
+            <p class="text-xs text-gray-500 mt-1" id="variant-hint">Please choose an option to continue.</p>
+
+            <div class="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2"
+                 id="variant-picker" data-requires-selection="true">
+              {% for v in product.variants.all %}
+                <button type="button"
+                        class="variant-btn border rounded-lg px-3 py-2 text-sm transition hover:bg-gray-50"
+                        data-variant-id="{{ v.id }}"
+                        data-price="{{ v.price_base }}"
+                        data-currency="{{ v.currency }}">
+                  {{ v.sku }}{% if v.attributes %} — {{ v.attributes|json_script:"attrs"|safe }}{% endif %}
+                </button>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {# ── Wishlist & Cart actions ─────────────────────────────── #}
+      <div class="mt-8 flex items-center gap-3">
+        {% is_in_wishlist user product as in_wishlist %}
+
+        <button type="button"
+          class="add-to-wishlist inline-flex items-center gap-2 px-4 py-2 rounded-xl border shadow-sm transition
+                 focus:outline-none focus:ring-2 focus:ring-offset-2
+                 {% if in_wishlist %} bg-red-50 border-red-200 text-red-600 added {% else %} bg-white border-gray-200 text-gray-700 hover:bg-gray-50 {% endif %}"
+          data-product-id="{{ product.id }}"
+          data-add-url="{% url 'accounts:add_to_wishlist' %}"
+          data-remove-url="{% url 'accounts:remove_from_wishlist' %}"
+          aria-pressed="{% if in_wishlist %}true{% else %}false{% endif %}">
+          <i class="{% if in_wishlist %}fas fa-heart{% else %}far fa-heart{% endif %}"></i>
+          <span class="wishlist-text">{% if in_wishlist %}In Wishlist{% else %}Add to Wishlist{% endif %}</span>
+        </button>
+
+        {% with total=product.variants.count %}
+        <form action="{% url 'storefront:cart_add' %}" method="post" class="inline-flex add-to-cart-form" id="cart-form">
+          {% csrf_token %}
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+          {% if total == 1 %}
+            <input type="hidden" id="variant_id_input" name="variant_id" value="{{ product.variants.first.id }}">
+          {% else %}
+            <input type="hidden" id="variant_id_input" name="variant_id" value="">
+          {% endif %}
+          <input type="hidden" name="qty" value="1">
+
+          <button type="submit"
+            class="add-to-cart-btn inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-medium
+                   shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                   {% if total > 1 %} opacity-60 cursor-not-allowed {% endif %}"
+            {% if total > 1 %}disabled{% endif %}
+            id="add-to-cart-btn">
+            <i class="fas fa-shopping-cart"></i> Add to Cart
+          </button>
+        </form>
+        {% endwith %}
+
+        <button type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-gray-700 bg-white
+                 hover:bg-gray-50 shadow-sm"
+          data-share-url="{% url 'storefront:product_detail' slug=product.slug %}"
+          data-share-title="{{ product.title }}">
+          <i class="fas fa-share-alt"></i> Share
+        </button>
       </div>
-    {% endif %}
+
+      <div class="mt-4 text-sm text-gray-500">
+        <p>Ships in 2–5 days. Free returns within 30 days.</p>
+      </div>
+    </section>
   </div>
+
+  <section class="mt-12">
+    <h2 class="text-lg font-semibold text-gray-900">Details</h2>
+    <div class="mt-3 prose prose-sm text-gray-700 max-w-none">
+      {{ product.long_description|default:product.description|linebreaksbr }}
+    </div>
+  </section>
+
 </div>
-{% endblock %}
+{% endblock content %}
 
-{% block extra_body %}
+{% block extra_js %}
 <script>
-(function(){
-  // util: money formatting (simple)
-  function money(amount, currency){ try{
-    return new Intl.NumberFormat(undefined,{style:'currency',currency:currency}).format(parseFloat(amount||0));
-  }catch(_){return amount+' '+(currency||'');} }
+(function () {
+  // ── Wishlist: idempotent add/remove based on state ───────────
+  const wishlistBtn = document.querySelector('.add-to-wishlist');
 
-  // Live update when variant changes
-  const select = document.getElementById('variant');
-  const hidden = document.getElementById('variant_id');
-  const stockEl = document.getElementById('selected-stock');
+  function setWishlistBtnState(isIn) {
+    if (!wishlistBtn) return;
+    const icon = wishlistBtn.querySelector('i');
+    const text = wishlistBtn.querySelector('.wishlist-text');
+    wishlistBtn.classList.toggle('added', isIn);
+    wishlistBtn.setAttribute('aria-pressed', isIn ? 'true' : 'false');
+    if (icon) icon.className = isIn ? 'fas fa-heart' : 'far fa-heart';
+    if (text) text.textContent = isIn ? 'In Wishlist' : 'Add to Wishlist';
 
-  function refreshForSelected(){
-    if(!select) return;
-    const opt = select.options[select.selectedIndex];
-    if(!opt) return;
-    // sync hidden
-    if(hidden) hidden.value = opt.value;
-
-    // stock badge
-    const inStock = opt.getAttribute('data-instock') === '1';
-    stockEl.textContent = inStock ? 'In-Stock' : 'Out-of-Stock';
-    stockEl.classList.toggle('bg-green-100', inStock);
-    stockEl.classList.toggle('text-green-700', inStock);
-    stockEl.classList.toggle('bg-red-100', !inStock);
-    stockEl.classList.toggle('text-red-700', !inStock);
-  }
-
-  if(select){
-    select.addEventListener('change', refreshForSelected);
-    refreshForSelected();
-  }
-
-  // Share (fallback to copy)
-  async function copy(t){try{await navigator.clipboard.writeText(t);return true}catch{return false}}
-  document.addEventListener('click', async e=>{
-    const btn=e.target.closest('button[data-share-url]'); if(!btn) return;
-    const url=new URL(btn.getAttribute('data-share-url'),window.location.origin).toString();
-    const title=btn.getAttribute('data-share-title')||document.title;
-    if(navigator.share){ try{await navigator.share({title,url})}catch(_){}} else {
-      const ok=await copy(url); const prev=btn.textContent; btn.textContent=ok?'Copied!':'Copy failed';
-      setTimeout(()=>btn.textContent=prev,1200);
+    if (isIn) {
+      wishlistBtn.classList.remove('bg-white','border-gray-200','text-gray-700','hover:bg-gray-50');
+      wishlistBtn.classList.add('bg-red-50','border-red-200','text-red-600');
+    } else {
+      wishlistBtn.classList.remove('bg-red-50','border-red-200','text-red-600');
+      wishlistBtn.classList.add('bg-white','border-gray-200','text-gray-700','hover:bg-gray-50');
     }
-  });
+  }
+
+  if (wishlistBtn) {
+    wishlistBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+
+      if (!window.STORE_CONFIG || !window.STORE_CONFIG.isAuthenticated) {
+        window.location.href = "{% url 'accounts:login' %}";
+        return;
+      }
+
+      const productId = this.getAttribute('data-product-id');
+      const isCurrentlyIn = this.classList.contains('added');
+      const url = isCurrentlyIn ? this.getAttribute('data-remove-url')
+                                : this.getAttribute('data-add-url');
+
+      const icon = this.querySelector('i');
+      const text = this.querySelector('.wishlist-text');
+      const prevIcon = icon ? icon.className : null;
+      const prevText = text ? text.textContent : null;
+
+      if (icon) icon.className = 'fas fa-spinner fa-spin';
+      if (text) text.textContent = 'Processing...';
+      this.disabled = true;
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': (window.STORE_CONFIG && window.STORE_CONFIG.csrfToken) || ''
+        },
+        body: JSON.stringify({ product_id: productId })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.success) {
+          setWishlistBtnState(!!data.added);
+          if (typeof window.updateWishlistCount === 'function') window.updateWishlistCount();
+          if (typeof window.showMessage === 'function') window.showMessage(data.message || 'Updated.', 'success');
+        } else {
+          if (typeof window.showMessage === 'function') window.showMessage((data && data.message) || 'Error', 'error');
+          if (icon && prevIcon) icon.className = prevIcon;
+          if (text && prevText) text.textContent = prevText;
+        }
+      })
+      .catch(() => {
+        if (typeof window.showMessage === 'function') window.showMessage('Error updating wishlist', 'error');
+        if (icon && prevIcon) icon.className = prevIcon;
+        if (text && prevText) text.textContent = prevText;
+      })
+      .finally(() => { this.disabled = false; });
+    });
+  }
+
+  // ── Variant picker: require explicit selection if >1 ─────────
+  const picker = document.getElementById('variant-picker');
+  const variantInput = document.getElementById('variant_id_input');
+  const addBtn = document.getElementById('add-to-cart-btn');
+  const hint = document.getElementById('variant-hint');
+
+  function enableAdd() {
+    if (!addBtn) return;
+    addBtn.disabled = false;
+    addBtn.classList.remove('opacity-60','cursor-not-allowed');
+  }
+  function disableAdd() {
+    if (!addBtn) return;
+    addBtn.disabled = true;
+    addBtn.classList.add('opacity-60','cursor-not-allowed');
+  }
+
+  if (picker && picker.dataset.requiresSelection === 'true' && variantInput) {
+    picker.addEventListener('click', function (e) {
+      const btn = e.target.closest('.variant-btn');
+      if (!btn) return;
+
+      // visual ring
+      picker.querySelectorAll('.variant-btn')
+        .forEach(b => b.classList.remove('ring-2','ring-indigo-500','border-indigo-500'));
+      btn.classList.add('ring-2','ring-indigo-500','border-indigo-500');
+
+      // set chosen variant & enable submit
+      variantInput.value = btn.getAttribute('data-variant-id') || '';
+      if (variantInput.value) {
+        enableAdd();
+        if (hint) hint.textContent = 'Option selected.';
+      }
+
+      // update displayed price (optional)
+      const p = btn.getAttribute('data-price');
+      const c = btn.getAttribute('data-currency');
+      const priceEls = document.querySelectorAll('div.text-2xl.font-semibold.text-gray-900');
+      if (p && c && priceEls.length) {
+        priceEls.forEach(el =>
+          el.textContent = new Intl.NumberFormat(undefined, { style: 'currency', currency: c }).format(p)
+        );
+      }
+    });
+
+    // guard against empty variant_id submits
+    document.getElementById('cart-form')?.addEventListener('submit', function(e){
+      if (!variantInput.value) {
+        e.preventDefault();
+        if (typeof window.showMessage === 'function') {
+          window.showMessage('Please select an option before adding to cart.', 'warning');
+        } else if (hint) {
+          hint.textContent = 'Please select an option before adding to cart.';
+        }
+        disableAdd();
+      }
+    });
+  }
 })();
 </script>
-{% endblock %}
+{% endblock extra_js %}

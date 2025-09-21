@@ -11,8 +11,10 @@ import requests
 
 try:
     from django.core.cache import cache
+    from django.core.cache.backends.base import BaseCache
+    cache_instance: Optional[BaseCache] = cache
 except Exception:
-    cache = None
+    cache_instance = None
 
 
 # -----------------------------
@@ -59,7 +61,7 @@ class CJAdapter:
       - access_token, refresh_token, access_token_expires, refresh_token_expires
     """
 
-    # safe defaults (we stay well under CJ’s 1000/day)
+    # safe defaults (we stay well under CJ's 1000/day)
     DEFAULT_TIMEOUT = 30
     DEFAULT_RETRIES = 3
     DEFAULT_MIN_INTERVAL_S = 0.3
@@ -133,10 +135,10 @@ class CJAdapter:
 
     def _budget(self, cost: int = 1):
         self._check_reset_counter()
-        if cache:
+        if cache_instance:
             key = self._cache_key()
-            cache.add(key, 0, timeout=86400)  # create if missing
-            new_val = cache.incr(key, cost)
+            cache_instance.add(key, 0, timeout=86400)  # create if missing
+            new_val = cache_instance.incr(key, cost)
             if new_val > self._daily_cap:
                 raise RateLimitedError(f"Internal daily cap reached ({self._daily_cap})")
             self._req_count = new_val

@@ -53,4 +53,10 @@ urlpatterns = [
     # Custom
     path("register/", views.register, name="register"),
     path("profile/", views.profile, name="profile"),
+    # Wishlist URLs
+    path("wishlist/", views.customer_wishlist, name="customer_wishlist"),
+    path("wishlist/add/", views.add_to_wishlist, name="add_to_wishlist"),
+    path("wishlist/remove/", views.remove_from_wishlist, name="remove_from_wishlist"),
+    path("wishlist/count/", views.wishlist_count, name="wishlist_count"),
+    path("wishlist/clear/", views.clear_wishlist, name="clear_wishlist"),
 ]

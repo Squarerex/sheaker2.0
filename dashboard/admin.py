@@ -30,4 +30,4 @@ class ImportLogAdmin(admin.ModelAdmin):
             url,
         )
 
-    preview_link.short_description = "Preview"
+    preview_link.short_description = "Preview"  # type: ignore[attr-defined]

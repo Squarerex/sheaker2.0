@@ -79,24 +79,24 @@ class UserAdmin(DjangoUserAdmin):
     def make_admin(self, request, queryset):
         self._set_role(request, queryset, "admin")
 
-    make_admin.short_description = "Set role: admin"
+    make_admin.short_description = "Set role: admin"  # type: ignore[attr-defined]
 
     def make_editor(self, request, queryset):
         self._set_role(request, queryset, "editor")
 
-    make_editor.short_description = "Set role: editor"
+    make_editor.short_description = "Set role: editor"  # type: ignore[attr-defined]
 
     def make_marketer(self, request, queryset):
         self._set_role(request, queryset, "marketer")
 
-    make_marketer.short_description = "Set role: marketer"
+    make_marketer.short_description = "Set role: marketer"  # type: ignore[attr-defined]
 
     def make_vendor(self, request, queryset):
         self._set_role(request, queryset, "vendor")
 
-    make_vendor.short_description = "Set role: vendor"
+    make_vendor.short_description = "Set role: vendor"  # type: ignore[attr-defined]
 
     def make_customer(self, request, queryset):
         self._set_role(request, queryset, "customer")
 
-    make_customer.short_description = "Set role: customer"
+    make_customer.short_description = "Set role: customer"  # type: ignore[attr-defined]

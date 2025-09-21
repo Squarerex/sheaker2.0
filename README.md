@@ -23,3 +23,6 @@ pre-commit run -a
 git add -A
 git commit -m "chore(settings): make dotenv optional for mypy; remove stray import; tidy prod"
 git push
+
+#######################################
+Stripe must be running to test for shipping/Purchase

@@ -12,7 +12,7 @@ def slugify_unique(model_cls: type[Model], value: str, slug_field: str = "slug")
     base = slugify(value) or "item"
     slug = base
     i = 2
-    while model_cls.objects.filter(**{slug_field: slug}).exists():
+    while model_cls.objects.filter(**{slug_field: slug}).exists():  # type: ignore[attr-defined]
         slug = f"{base}-{i}"
         i += 1
     return slug

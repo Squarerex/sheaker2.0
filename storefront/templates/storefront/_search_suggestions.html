@@ -1,0 +1,81 @@
+<!-- storefront/_search_suggestions.html -->
+<div class="max-h-96 overflow-y-auto">
+  {% if products or brands or categories %}
+
+    <!-- Product Suggestions -->
+    {% if products %}
+    <div class="p-2 border-b">
+      <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Products</div>
+      {% for product in products %}
+      <a href="#" class="search-suggestion flex items-center p-2 hover:bg-gray-50 rounded" data-query="{{ product.title }}">
+        <div class="w-10 h-10 bg-gray-100 rounded mr-3 flex-shrink-0 overflow-hidden">
+          {% with product.media.first as first_image %}
+            {% if first_image and first_image.image %}
+              <img src="{{ first_image.image.url }}" alt="{{ product.title }}" class="w-full h-full object-cover">
+            {% else %}
+              <div class="w-full h-full flex items-center justify-center">
+                <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                </svg>
+              </div>
+            {% endif %}
+          {% endwith %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-gray-900 truncate">{{ product.title }}</div>
+          {% if product.brand %}
+            <div class="text-xs text-gray-500">{{ product.brand }}</div>
+          {% endif %}
+        </div>
+        {% if product.variants.exists %}
+          <div class="text-sm font-medium text-gray-900">${{ product.variants.first.price_base }}</div>
+        {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Brand Suggestions -->
+    {% if brands %}
+    <div class="p-2 border-b">
+      <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Brands</div>
+      {% for brand in brands %}
+      <a href="{% url 'storefront:search' %}?brand={{ brand }}" class="search-suggestion block p-2 hover:bg-gray-50 rounded" data-query="{{ brand }}">
+        <div class="flex items-center">
+          <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+          </svg>
+          <span class="text-sm text-gray-900">{{ brand }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Category Suggestions -->
+    {% if categories %}
+    <div class="p-2">
+      <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Categories</div>
+      {% for category in categories %}
+      <a href="{% url 'storefront:category' category.slug %}" class="search-suggestion block p-2 hover:bg-gray-50 rounded" data-query="{{ category.name }}">
+        <div class="flex items-center">
+          <svg class="w-4 h-4 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+          </svg>
+          <span class="text-sm text-gray-900">{{ category.name }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  {% else %}
+    <div class="p-4 text-center">
+      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+      </svg>
+      <div class="text-sm text-gray-500 mt-2">No suggestions found for "{{ query }}"</div>
+      <div class="text-xs text-gray-400 mt-1">Try a different search term</div>
+    </div>
+  {% endif %}
+</div>

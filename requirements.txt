@@ -18,3 +18,5 @@ types-requests
 Pillow
 argon2-cffi
 celery
+stripe==11.*
+psycopg2-binary

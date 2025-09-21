@@ -3,15 +3,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Any, Dict, Iterator, List, Tuple, Union
 
 CART_SESSION_KEY = "cart_v1"
 
 
 @dataclass
 class CartLine:
-    product: any
-    variant: any
+    product: Any
+    variant: Any
     qty: int
     unit_price: Decimal
 
@@ -81,7 +81,7 @@ class Cart:
             try:
                 vid = int(k)
             except (TypeError, ValueError):
-                # stray key (e.g., 'items', 'meta', etc.) — ignore
+                # stray key (e.g., 'items', 'meta', etc.) – ignore
                 continue
             qty = self._coerce_qty(payload)
             if qty > 0:
@@ -109,7 +109,7 @@ class Cart:
         self._save()
 
     # ----- iteration & totals (with DB join for rich lines) -----
-    def __iter__(self) -> Iterable[CartLine]:
+    def __iter__(self) -> Iterator[CartLine]:
         from catalog.models import Variant  # local import to avoid circulars
 
         pairs = self.items_raw()

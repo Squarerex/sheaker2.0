@@ -14,7 +14,7 @@ def _normalize_roles(roles: RolesArg) -> set[str]:
     if isinstance(roles, str):
         roles_iter = [roles]
     else:
-        roles_iter = roles
+        roles_iter = list(roles)  # Convert Iterable to list to fix the assignment error
     return {r.strip().lower() for r in roles_iter if r and str(r).strip()}
 
 

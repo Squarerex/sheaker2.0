@@ -1,6 +1,14 @@
-{% load static money %}
+{% load static money wishlist_tags %}
 
-<div class="p-4 bg-white rounded-2xl shadow-lg transition-transform duration-200 ease-out hover:-translate-y-1 hover:shadow-2xl group">
+<div class="p-4 bg-white rounded-2xl shadow-lg transition-transform duration-200 ease-out hover:-translate-y-1 hover:shadow-2xl group relative">
+  <!-- Wishlist button positioned over the image -->
+  {% is_in_wishlist user p as in_wishlist %}
+  <button class="add-to-wishlist absolute top-6 right-6 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full shadow-lg flex items-center justify-center transition-all duration-200 ease-out hover:bg-white hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-300 opacity-0 group-hover:opacity-100 {% if in_wishlist %}!opacity-100 added{% endif %}"
+          data-product-id="{{ p.id }}"
+          title="{% if in_wishlist %}Remove from wishlist{% else %}Add to wishlist{% endif %}">
+    <i class="{% if in_wishlist %}fas fa-heart text-red-500{% else %}far fa-heart text-gray-600{% endif %} hover:text-red-500 transition-colors duration-200"></i>
+  </button>
+
   <a href="{% url 'storefront:product_detail' slug=p.slug %}" class="block rounded-lg overflow-hidden">
     {% with m=p.media.all|first %}
       {% if m %}

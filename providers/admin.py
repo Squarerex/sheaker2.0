@@ -4,11 +4,8 @@ from django.db import models
 
 from providers.models import ProviderSyncLog
 
-# ---- Safe fallback: use AdminJSONFieldWidget if available, else AdminTextareaWidget
-try:
-    from django.contrib.admin.widgets import AdminJSONFieldWidget as _JSONWidget
-except Exception:
-    from django.contrib.admin.widgets import AdminTextareaWidget as _JSONWidget
+# ---- Simple widget fix
+from django.contrib.admin.widgets import AdminTextareaWidget as _JSONWidget
 
 from providers.models import ProviderAccount, SupplierProduct
 from providers.services.health import ping_provider
@@ -60,7 +57,7 @@ class ProviderAccountAdmin(admin.ModelAdmin):
     search_fields = ("code", "name")
     actions = [sync_selected_providers]
 
-    # Pretty JSON editor if available; otherwise a textarea
+    # Use textarea widget for JSON fields
     formfield_overrides = {
         models.JSONField: {"widget": _JSONWidget},
     }

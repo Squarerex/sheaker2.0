@@ -3,12 +3,51 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="{% block meta_description %}{{ seo.description|default:"Premium ecommerce store with the latest fashion and trends" }}{% endblock %}" />
+  <meta name="keywords" content="{% block meta_keywords %}ecommerce, fashion, shopping, online store{% endblock %}" />
+
+  <!-- Termly Cookie Banner & Auto Blocker -->
+  <script type="text/javascript">
+  (function () {
+      var s = document.createElement('script');
+      s.type = 'text/javascript';
+      s.async = true;
+      s.src = 'https://app.termly.io/resource-blocker/5d6ece88-e397-4d04-84c4-a234354efb70?autoBlock=on';
+      var x = document.getElementsByTagName('script')[0];
+      x.parentNode.insertBefore(s, x);
+      })();
+  </script>
+
+  <!-- Google Consent Mode (FIRST - before any tracking) -->
+  <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+
+      // Set default consent state - deny all until user chooses
+      gtag('consent', 'default', {
+          'analytics_storage': 'denied',
+          'ad_storage': 'denied',
+          'ad_user_data': 'denied',
+          'ad_personalization': 'denied',
+          'wait_for_update': 2000
+      });
+  </script>
+
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-WLRSZN3V');</script>
+
+  <!-- GOAFFPRO TRACKING -->
+  <script type="text/javascript" src="https://api.goaffpro.com/loader.js?shop=utesqvbtrk"></script>
 
   {# JSON-LD product/page data goes here from child templates #}
   {% block jsonld %}{% endblock %}
 
-  <title>{% block meta_title %}{{ seo.title|default:"Store" }}{% endblock %}</title>
-  <meta name="description" content="{% block meta_description %}{{ seo.description|default:"" }}{% endblock %}" />
+  <title>{% block meta_title %}{{ seo.title|default:"Store" }}{% endblock %} | Sheaker</title>
   <link rel="canonical" href="{{ seo.canonical|default:request.build_absolute_uri }}" />
 
   <!-- Open Graph -->
@@ -16,35 +55,310 @@
   <meta property="og:description" content="{% block og_description %}{{ seo.description|default:"" }}{% endblock %}">
   {% if seo.og_image %}<meta property="og:image" content="{{ seo.og_image }}">{% endif %}
   <meta property="og:url" content="{{ seo.canonical|default:request.build_absolute_uri }}">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+
+  <!-- CSS Files -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Tailwind CDN (dev only). Replace with your compiled CSS in production. -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Fallback so .hidden works even if Tailwind fails -->
   <style>.hidden{display:none}</style>
 
+  <!-- CSRF Token for AJAX requests -->
+  <meta name="csrf-token" content="{{ csrf_token }}">
+
+  <!-- Enhanced Styles -->
+  <style>
+    /* Top bar styles */
+    .top-bar {
+      background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+      color: #d1d5db;
+      padding: 0.5rem 0;
+      font-size: 0.875rem;
+    }
+    .top-bar-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .top-links {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .top-link {
+      color: #d1d5db;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .top-link:hover {
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .top-link::after {
+      content: '';
+      position: absolute;
+      bottom: -4px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: #3b82f6;
+      transition: width 0.3s ease;
+    }
+    .top-link:hover::after {
+      width: 100%;
+    }
+
+    /* Currency selector */
+    .currency-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 6px 12px;
+      border-radius: 20px;
+      transition: all 0.3s ease;
+    }
+    .currency-wrap:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+    .currency-select {
+      background: transparent;
+      border: none;
+      color: #d1d5db;
+      font-size: 0.875rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Wishlist icon */
+    .wishlist-action {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      padding: 0.75rem;
+      color: #6b7280;
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      background: #f9fafb;
+    }
+    .wishlist-action:hover {
+      color: #ef4444;
+      background: #fef2f2;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+    }
+    .wishlist-count {
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.125rem 0.375rem;
+      border-radius: 9999px;
+      min-width: 1.25rem;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    }
+
+    /* Mobile menu toggle */
+    .mobile-menu-toggle {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      width: 40px;
+      height: 40px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .mobile-menu-toggle:hover {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
+    .mobile-menu-toggle span {
+      width: 20px;
+      height: 2px;
+      background: #374151;
+      margin: 2px 0;
+      transition: all 0.3s ease;
+    }
+
+    /* Mobile menu overlay */
+    .mobile-menu-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+      display: none;
+    }
+    .mobile-menu-overlay.active {
+      display: block;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .top-bar {
+        display: none;
+      }
+      .mobile-menu-toggle {
+        display: flex;
+      }
+    }
+
+    /* Enhanced cart badge */
+    #mini-cart-badge {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.125rem 0.375rem;
+      border-radius: 9999px;
+      min-width: 1.25rem;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    }
+
+    /* Enhanced mini cart panel */
+    #mini-cart-panel {
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+  </style>
+
   {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-gray-50">
-  <header class="p-4 bg-white shadow">
-    <div class="max-w-6xl mx-auto flex items-center justify-between">
-      <a href="{% url 'storefront:home' %}" class="font-semibold">Sheaker</a>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WLRSZN3V"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
-      <!-- Cart link (navigates) + caret button (opens mini-cart) -->
-      <div class="relative flex items-center gap-2">
-        <a id="cart-link" href="{% url 'storefront:cart_detail' %}" class="relative px-3 py-1 border rounded">
-          Cart
-          <span id="mini-cart-badge" class="ml-1 text-sm text-gray-500">({{ cart.total_qty|default:0 }})</span>
+  <!-- Mobile Menu Overlay -->
+  <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="top-bar-content">
+        <div class="top-bar-left">
+          <!-- You can add promo text here if needed -->
+        </div>
+        <div class="top-bar-right">
+          <div class="top-links">
+            {# Currency selector - placeholder for when you implement currency system #}
+            {% comment %}
+            <span class="currency-wrap">
+              <span class="fi fi-{{ USER_CURRENCY|currency_flag }}"></span>
+              <form action="#" method="get" style="display:inline;">
+                <select name="currency" class="currency-select" onchange="this.form.submit()">
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                </select>
+              </form>
+            </span>
+            {% endcomment %}
+
+            {# Authentication Links #}
+            {% if user.is_authenticated %}
+              {% if user.user_type == 'customer' %}
+                <a href="#" class="top-link">Track Order</a>
+              {% else %}
+                <a href="#" class="top-link">Dashboard</a>
+              {% endif %}
+              <a href="{% url 'accounts:logout' %}" class="top-link">Logout</a>
+            {% else %}
+              <a href="{% url 'accounts:login' %}" class="top-link">Login</a>
+              <a href="{% url 'accounts:register' %}" class="top-link">Sign Up</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <header class="p-4 bg-white shadow">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
+      <!-- Logo -->
+      <a href="{% url 'storefront:home' %}" class="font-semibold text-lg">
+        <img src="{% static 'images/logo.jpg' %}" alt="Sheaker Logo" style="width: 150px; height: auto;">
+      </a>
+
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-lg relative">
+        <form action="{% url 'storefront:search' %}" method="get" class="relative">
+          <input
+            type="text"
+            name="q"
+            id="search-input"
+            value="{{ request.GET.q|default:'' }}"
+            placeholder="Search products..."
+            class="w-full px-4 py-2 pl-10 pr-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            autocomplete="off"
+          >
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+            </svg>
+          </div>
+        </form>
+
+        <!-- Search Suggestions Dropdown -->
+        <div id="search-suggestions" class="hidden absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+          <div class="p-2 text-sm text-gray-500">Start typing to see suggestions...</div>
+        </div>
+      </div>
+
+      <!-- Header Actions -->
+      <div class="flex items-center gap-4">
+        <!-- Wishlist -->
+        <a href="{% url 'accounts:customer_wishlist' %}" class="wishlist-action relative">
+          <i class="far fa-heart text-xl"></i>
+          <span class="wishlist-count" id="wishlist-count">{{ wishlist_count|default:0 }}</span>
         </a>
 
-        <button id="mini-cart-toggle" type="button" class="px-2 py-1 border rounded" aria-label="Open mini cart" aria-expanded="false">▾</button>
+        <!-- Cart link (navigates) + caret button (opens mini-cart) -->
+        <div class="relative flex items-center gap-2">
+          <a id="cart-link" href="{% url 'storefront:cart_detail' %}" class="relative px-3 py-1 border rounded">
+            <i class="fas fa-shopping-bag"></i>
+            <span id="mini-cart-badge" class="ml-1 text-sm text-gray-500">({{ cart.total_qty|default:0 }})</span>
+          </a>
 
-        <div
-          id="mini-cart-panel"
-          class="hidden opacity-0 transition-opacity duration-150 ease-out absolute right-0 top-full mt-2 w-80 bg-white border shadow-xl rounded overflow-hidden z-50"
-        >
-          <div class="p-3 text-sm text-gray-500">Loading…</div>
+          <button id="mini-cart-toggle" type="button" class="px-2 py-1 border rounded" aria-label="Open mini cart" aria-expanded="false">▾</button>
+
+          <div
+            id="mini-cart-panel"
+            class="hidden opacity-0 transition-opacity duration-150 ease-out absolute right-0 top-full mt-2 w-80 bg-white border shadow-xl rounded overflow-hidden z-50"
+          >
+            <div class="p-3 text-sm text-gray-500">Loading…</div>
+          </div>
         </div>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
     </div>
   </header>
@@ -61,10 +375,102 @@
     {% block content %}{% endblock %}
   </main>
 
+  <!-- Footer -->
+  <footer class="bg-gray-900 text-white mt-16">
+    <div class="max-w-6xl mx-auto p-8">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <!-- Company Info -->
+        <div>
+          <h3 class="text-lg font-semibold mb-4">About Us</h3>
+          <p class="text-gray-300 mb-4">
+            Your premier destination for the latest fashion trends and premium quality products.
+          </p>
+          <div class="flex space-x-4">
+            <a href="https://www.facebook.com/share/16Go67PzkR/" target="_blank" class="text-gray-400 hover:text-white">
+              <i class="fab fa-facebook"></i>
+            </a>
+            <a href="https://www.instagram.com/sheaker_official?igsh=dnA0dWYzdDBtZGxk" target="_blank" class="text-gray-400 hover:text-white">
+              <i class="fab fa-instagram"></i>
+            </a>
+            <a href="https://www.tiktok.com/@sheaker_official?_t=ZN-8zXEpg5V54o&_r=1" target="_blank" class="text-gray-400 hover:text-white">
+              <i class="fab fa-tiktok"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- Customer Service -->
+        <div>
+          <h3 class="text-lg font-semibold mb-4">Customer Service</h3>
+          <ul class="space-y-2 text-gray-300">
+            <li><a href="#" class="hover:text-white">Contact Us</a></li>
+            <li><a href="#" class="hover:text-white">FAQ</a></li>
+            <li><a href="#" class="hover:text-white">Size Guide</a></li>
+            <li><a href="#" class="hover:text-white">Shipping Policy</a></li>
+            <li><a href="#" class="hover:text-white">Return Policy</a></li>
+            <li><a href="#" class="hover:text-white">Track Your Order</a></li>
+          </ul>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+          <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+          <ul class="space-y-2 text-gray-300">
+            <li><a href="{% url 'storefront:home' %}" class="hover:text-white">Home</a></li>
+            <li><a href="#" class="hover:text-white">New Arrivals</a></li>
+            <li><a href="#" class="hover:text-white">Recommended</a></li>
+            <li><a href="#" class="hover:text-white">Featured Products</a></li>
+            <li><a href="#" class="hover:text-white">Blog</a></li>
+          </ul>
+        </div>
+
+        <!-- Newsletter -->
+        <div>
+          <h3 class="text-lg font-semibold mb-4">Stay Connected</h3>
+          <p class="text-gray-300 mb-4">Subscribe to get special offers, free giveaways, and exclusive deals.</p>
+          <form class="flex" method="POST" action="#">
+            {% csrf_token %}
+            <input type="email" name="email" placeholder="Enter your email" class="flex-1 px-3 py-2 bg-gray-800 text-white rounded-l border border-gray-700 focus:outline-none focus:border-blue-500" required>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-r hover:bg-blue-700 transition-colors">Subscribe</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Bottom -->
+    <div class="border-t border-gray-800">
+      <div class="max-w-6xl mx-auto p-4">
+        <div class="flex flex-col md:flex-row justify-between items-center">
+          <div class="text-gray-400 mb-4 md:mb-0">
+            <p>&copy; {% now "Y" %} Sheaker. All rights reserved.</p>
+          </div>
+          <div class="flex space-x-4 text-sm">
+            <a href="#" class="text-gray-400 hover:text-white">Privacy Policy</a>
+            <a href="#" class="text-gray-400 hover:text-white">Terms & Conditions</a>
+            <a href="#" class="text-gray-400 hover:text-white">Cookies Policy</a>
+            <a href="#" class="termly-display-preferences text-gray-400 hover:text-white">Cookie Preferences</a>
+          </div>
+          <div class="flex items-center space-x-2 mt-4 md:mt-0">
+            <div class="flex items-center text-gray-400">
+              <i class="fas fa-shield-alt mr-2"></i>
+              <span class="text-sm">Safe & Trusted Payment Options</span>
+            </div>
+            <div class="flex space-x-1">
+              <img src="{% static 'images/payment/visa_card.PNG' %}" alt="Visa" class="h-6">
+              <img src="{% static 'images/payment/master-card.PNG' %}" alt="Mastercard" class="h-6">
+              <img src="{% static 'images/payment/american_express.PNG' %}" alt="American Express" class="h-6">
+              <img src="{% static 'images/payment/paypal.PNG' %}" alt="PayPal" class="h-6">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
   {% block extra_body %}{% endblock %}
 
   <script>
   (function(){
+    // Mini cart functionality (your existing code preserved)
     const panel = document.getElementById('mini-cart-panel');
     const badge = document.getElementById('mini-cart-badge');
     const toggleBtn = document.getElementById('mini-cart-toggle');
@@ -135,7 +541,438 @@
 
     // Keep the badge in sync on load
     refreshMiniCart();
+
+    // Search Suggestions functionality (your existing code preserved)
+    const searchInput = document.getElementById('search-input');
+    const searchSuggestions = document.getElementById('search-suggestions');
+    let searchTimeout;
+    let isVisible = false;
+
+    function showSuggestions() {
+      searchSuggestions.classList.remove('hidden');
+      isVisible = true;
+    }
+
+    function hideSuggestions() {
+      searchSuggestions.classList.add('hidden');
+      isVisible = false;
+    }
+
+    async function fetchSuggestions(query) {
+      console.log('Fetching suggestions for:', query); // Debug log
+
+      if (query.length < 2) {
+        searchSuggestions.innerHTML = '<div class="p-2 text-sm text-gray-500">Start typing to see suggestions...</div>';
+        return;
+      }
+
+      try {
+        const response = await fetch(`{% url 'storefront:search_suggestions' %}?q=${encodeURIComponent(query)}`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        });
+
+        console.log('Response status:', response.status); // Debug log
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Response data:', data); // Debug log
+          searchSuggestions.innerHTML = data.html;
+        } else {
+          console.error('Search suggestions failed:', response.status, response.statusText);
+          searchSuggestions.innerHTML = '<div class="p-2 text-sm text-red-500">Failed to load suggestions</div>';
+        }
+      } catch (error) {
+        console.error('Search suggestions error:', error);
+        searchSuggestions.innerHTML = '<div class="p-2 text-sm text-red-500">Error loading suggestions</div>';
+      }
+    }
+
+    // Search input event listeners
+    searchInput.addEventListener('input', (e) => {
+      const query = e.target.value.trim();
+      clearTimeout(searchTimeout);
+
+      console.log('Search input changed:', query); // Debug log
+
+      if (query.length >= 2) {
+        showSuggestions();
+        searchTimeout = setTimeout(() => fetchSuggestions(query), 300);
+      } else {
+        hideSuggestions();
+      }
+    });
+
+    searchInput.addEventListener('focus', (e) => {
+      const query = e.target.value.trim();
+      console.log('Search input focused:', query); // Debug log
+
+      if (query.length >= 2) {
+        showSuggestions();
+        fetchSuggestions(query);
+      }
+    });
+
+    searchInput.addEventListener('blur', () => {
+      // Delay hiding to allow clicks on suggestions
+      setTimeout(() => {
+        if (!searchSuggestions.matches(':hover')) {
+          hideSuggestions();
+        }
+      }, 200);
+    });
+
+    // Handle suggestion clicks
+    document.addEventListener('click', (e) => {
+      const suggestion = e.target.closest('.search-suggestion');
+      if (suggestion) {
+        e.preventDefault();
+        const query = suggestion.getAttribute('data-query');
+        const href = suggestion.getAttribute('href');
+
+        console.log('Suggestion clicked:', query, href); // Debug log
+
+        if (href && href !== '#') {
+          // Navigate to specific page (category, product, etc.)
+          window.location.href = href;
+        } else if (query) {
+          // Fill search and submit
+          searchInput.value = query;
+          hideSuggestions();
+          searchInput.closest('form').submit();
+        }
+      }
+    });
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !searchSuggestions.contains(e.target)) {
+        hideSuggestions();
+      }
+    });
+
+    // Handle keyboard navigation (optional enhancement)
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        hideSuggestions();
+      }
+    });
+
+    // Mobile menu functionality
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+
+    if (mobileMenuToggle && mobileMenuOverlay) {
+      // Create mobile menu content
+      const mobileMenu = document.createElement('div');
+      mobileMenu.className = 'mobile-menu';
+      mobileMenu.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: -300px;
+        width: 300px;
+        height: 100vh;
+        background: white;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+        transition: left 0.3s ease;
+        overflow-y: auto;
+      `;
+
+      // Add menu content
+      mobileMenu.innerHTML = `
+        <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+          <h3 style="margin: 0; font-size: 18px;">Menu</h3>
+          <button class="mobile-menu-close" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+        </div>
+        <div style="padding: 20px;">
+          <div style="margin-bottom: 20px;">
+            {% if user.is_authenticated %}
+              <a href="#" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Track Order</a>
+              <a href="{% url 'accounts:logout' %}" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Logout</a>
+            {% else %}
+              <a href="{% url 'accounts:login' %}" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Login</a>
+              <a href="{% url 'accounts:register' %}" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Sign Up</a>
+            {% endif %}
+          </div>
+          <div>
+            <a href="{% url 'storefront:home' %}" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Home</a>
+            <a href="#" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Shop</a>
+            <a href="{% url 'accounts:customer_wishlist' %}" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Wishlist</a>
+            <a href="{% url 'storefront:cart_detail' %}" style="display: block; padding: 10px 0; text-decoration: none; color: #374151; border-bottom: 1px solid #f3f4f6;">Cart</a>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(mobileMenu);
+
+      // Toggle mobile menu
+      function toggleMobileMenu() {
+        mobileMenuOverlay.classList.toggle('active');
+        if (mobileMenuOverlay.classList.contains('active')) {
+          mobileMenu.style.left = '0';
+          document.body.style.overflow = 'hidden';
+        } else {
+          mobileMenu.style.left = '-300px';
+          document.body.style.overflow = '';
+        }
+      }
+
+      mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+      mobileMenuOverlay.addEventListener('click', toggleMobileMenu);
+      mobileMenu.querySelector('.mobile-menu-close').addEventListener('click', toggleMobileMenu);
+    }
+
+    // Global variables for JavaScript
+    window.STORE_CONFIG = {
+        csrfToken: '{{ csrf_token }}',
+        cartUrl: '{% url "storefront:cart_detail" %}',
+        addToCartUrl: '#', // Update when you have add to cart URL
+        removeFromCartUrl: '#', // Update when you have remove from cart URL
+        searchUrl: '{% url "storefront:search_suggestions" %}',
+        wishlistAddUrl: '{% url "accounts:add_to_wishlist" %}',
+        wishlistCountUrl: '{% url "accounts:wishlist_count" %}',
+        isAuthenticated: {% if user.is_authenticated %}true{% else %}false{% endif %}
+    };
+
+    // Wishlist functionality
+    function updateWishlistCount() {
+        if (window.STORE_CONFIG.isAuthenticated) {
+            fetch(window.STORE_CONFIG.wishlistCountUrl, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': window.STORE_CONFIG.csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const wishlistCount = document.getElementById('wishlist-count');
+                if (wishlistCount) {
+                    wishlistCount.textContent = data.count || 0;
+                    if (data.count > 0) {
+                        wishlistCount.style.display = 'block';
+                    } else {
+                        wishlistCount.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => console.error('Error updating wishlist count:', error));
+        }
+    }
+
+    // Add to wishlist functionality (for product pages)
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('.add-to-wishlist') || e.target.closest('.add-to-wishlist')) {
+            e.preventDefault();
+            const button = e.target.matches('.add-to-wishlist') ? e.target : e.target.closest('.add-to-wishlist');
+            const productId = button.getAttribute('data-product-id');
+
+            if (!window.STORE_CONFIG.isAuthenticated) {
+                window.location.href = '{% url "accounts:login" %}';
+                return;
+            }
+
+            // Add loading state
+            button.style.pointerEvents = 'none';
+            const icon = button.querySelector('i');
+            const originalIcon = icon.className;
+            icon.className = 'fas fa-spinner fa-spin text-gray-400';
+
+            fetch(window.STORE_CONFIG.wishlistAddUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': window.STORE_CONFIG.csrfToken
+                },
+                body: JSON.stringify({
+                    'product_id': productId
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.added) {
+                        button.classList.add('added', '!opacity-100');
+                        icon.className = 'fas fa-heart text-red-500';
+                        button.title = 'Remove from wishlist';
+                    } else {
+                        button.classList.remove('added', '!opacity-100');
+                        icon.className = 'far fa-heart text-gray-600';
+                        button.title = 'Add to wishlist';
+                    }
+                    updateWishlistCount();
+                    showMessage(data.message, 'success');
+                } else {
+                    showMessage(data.message, 'error');
+                    icon.className = originalIcon;
+                }
+            })
+            .catch(error => {
+                console.error('Error adding to wishlist:', error);
+                showMessage('Error adding to wishlist', 'error');
+                icon.className = originalIcon;
+            })
+            .finally(() => {
+                button.style.pointerEvents = '';
+            });
+        }
+    });
+
+    // Initialize wishlist count on page load
+    updateWishlistCount();
+
+    // Enhanced message system
+    function showMessage(message, type = 'info') {
+      // Create message container if it doesn't exist
+      let messageContainer = document.querySelector('.messages-container');
+      if (!messageContainer) {
+        messageContainer = document.createElement('div');
+        messageContainer.className = 'messages-container';
+        messageContainer.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 1000;
+          max-width: 400px;
+        `;
+        document.body.appendChild(messageContainer);
+      }
+
+      // Create message element
+      const messageEl = document.createElement('div');
+      messageEl.className = `alert alert-${type} alert-dismissible`;
+      messageEl.style.cssText = `
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        border-radius: 6px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        animation: slideIn 0.3s ease-out;
+      `;
+
+      // Set colors based on type
+      const colors = {
+        success: { bg: '#10b981', text: '#ffffff' },
+        error: { bg: '#ef4444', text: '#ffffff' },
+        warning: { bg: '#f59e0b', text: '#ffffff' },
+        info: { bg: '#3b82f6', text: '#ffffff' }
+      };
+      const color = colors[type] || colors.info;
+      messageEl.style.backgroundColor = color.bg;
+      messageEl.style.color = color.text;
+
+      messageEl.innerHTML = `
+        <span>${message}</span>
+        <button type="button" class="alert-close" style="background: none; border: none; color: inherit; cursor: pointer; font-size: 18px; margin-left: 12px;">&times;</button>
+      `;
+
+      // Add close functionality
+      messageEl.querySelector('.alert-close').addEventListener('click', () => {
+        messageEl.style.animation = 'slideOut 0.3s ease-in';
+        setTimeout(() => messageEl.remove(), 300);
+      });
+
+      // Auto remove after 5 seconds
+      setTimeout(() => {
+        if (messageEl.parentNode) {
+          messageEl.style.animation = 'slideOut 0.3s ease-in';
+          setTimeout(() => messageEl.remove(), 300);
+        }
+      }, 5000);
+
+      messageContainer.appendChild(messageEl);
+    }
+
+    // Newsletter subscription with validation
+    const newsletterForm = document.querySelector('form[action="#"]');
+    if (newsletterForm) {
+      newsletterForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const emailInput = this.querySelector('input[name="email"]');
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const email = emailInput.value.trim();
+
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          showMessage('Please enter a valid email address', 'error');
+          return;
+        }
+
+        // Show loading state
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Subscribing...';
+        submitBtn.disabled = true;
+
+        // Simulate API call (replace with actual endpoint when ready)
+        setTimeout(() => {
+          showMessage('Successfully subscribed to newsletter!', 'success');
+          emailInput.value = '';
+          submitBtn.textContent = originalText;
+          submitBtn.disabled = false;
+        }, 1000);
+      });
+    }
+
+    // Add CSS animations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes slideOut {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+
+      .wishlist-action .wishlist-count:empty {
+        display: none;
+      }
+
+      .add-to-wishlist {
+        transition: all 0.3s ease;
+      }
+
+      .add-to-wishlist.added {
+        color: #ef4444;
+      }
+
+      .add-to-wishlist:hover {
+        transform: scale(1.1);
+      }
+    `;
+    document.head.appendChild(style);
   })();
   </script>
+
+  <!-- GOAFFPRO TRACKING -->
+  <script type="text/javascript">
+        window.goaffpro_order = {
+          number : "#1001",
+          total: 1000
+        }
+        if(typeof window.goaffproTrackConversion !== "undefined"){
+          window.goaffproTrackConversion(window.goaffpro_order)
+        }
+  </script>
+
 </body>
 </html>

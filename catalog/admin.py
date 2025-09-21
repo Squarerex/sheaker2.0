@@ -49,21 +49,21 @@ def mark_recommended(modeladmin, request, queryset):
     queryset.update(is_recommended=True)
 
 
-mark_recommended.short_description = "Mark as Recommended"
+mark_recommended.short_description = "Mark as Recommended"  # type: ignore[attr-defined]
 
 
 def mark_popular(modeladmin, request, queryset):
     queryset.update(is_popular=True)
 
 
-mark_popular.short_description = "Mark as Most Popular"
+mark_popular.short_description = "Mark as Most Popular"  # type: ignore[attr-defined]
 
 
 def mark_handpicked(modeladmin, request, queryset):
     queryset.update(is_handpicked=True)
 
 
-mark_handpicked.short_description = "Mark as Handpicked"
+mark_handpicked.short_description = "Mark as Handpicked"  # type: ignore[attr-defined]
 
 
 # -------- ModelAdmins --------

@@ -6,11 +6,11 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # project root
 
 try:
-    from dotenv import load_dotenv  # type: ignore
+    from dotenv import load_dotenv
 except Exception:  # ImportError on mypy's venv, or any edge case
     load_dotenv = None  # type: ignore
 
-if load_dotenv:
+if load_dotenv():
     load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-in-prod")
@@ -62,7 +62,12 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 # Expose session cart everywhere:
                 "core.context_processors.cart_context",
-            ]
+                "core.context_processors.currency_context",
+                # 'accounts.views.wishlist_context',
+            ],
+            "builtins": [
+                "accounts.templatetags.wishlist_tags",  # auto-load globally
+            ],
         },
     }
 ]
@@ -138,6 +143,21 @@ CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_TASK_TIME_LIMIT = 30
 CELERY_TASK_SOFT_TIME_LIMIT = 20
+
+# Stripe
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_CURRENCY = os.getenv("STRIPE_CURRENCY", "ngn")
+
+
+BASE_CURRENCY = os.getenv("BASE_CURRENCY", "GBP")  # store/catalog base
+CHECKOUT_CURRENCY = os.getenv("CHECKOUT_CURRENCY", "GBP")  # cart/checkout & Stripe
+DEFAULT_USER_DISPLAY_CURRENCY = os.getenv("DEFAULT_USER_DISPLAY_CURRENCY", "USD")
+
+FX_PROVIDER = os.getenv("FX_PROVIDER", "exchangerate_host")
+FX_CACHE_SECONDS = int(os.getenv("FX_CACHE_SECONDS", "21600"))  # 6h
+
 
 # --- Email (dev) ---
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

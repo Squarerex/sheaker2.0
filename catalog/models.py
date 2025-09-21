@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator
@@ -144,7 +144,7 @@ class Product(TimeStampedModel):
 class Variant(TimeStampedModel):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     sku = models.CharField(max_length=64, unique=True, db_index=True)
-    attributes: Dict[str, Any] = models.JSONField(default=dict, blank=True)
+    attributes: Any = models.JSONField(default=dict, blank=True)
 
     price_base = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0.00"))
     currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default="USD")
@@ -152,7 +152,7 @@ class Variant(TimeStampedModel):
     # Use 'weight' to match dashboard forms (kilograms recommended)
     weight = models.DecimalField(max_digits=8, decimal_places=3, null=True, blank=True)
     # e.g. {"l": 10.0, "w": 5.0, "h": 3.0, "unit": "cm"}
-    dims: Dict[str, Any] = models.JSONField(default=dict, blank=True)
+    dims: Any = models.JSONField(default=dict, blank=True)
 
     is_active = models.BooleanField(default=True)
 

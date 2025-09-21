@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="h4">Delete Address</h1>
+<p>Are you sure you want to delete: <strong>{{ address.full_name }}</strong>, {{ address.line1 }}, {{ address.city }}?</p>
+<form method="post">
+  {% csrf_token %}
+  <button class="btn btn-danger" type="submit">Yes, delete</button>
+  <a class="btn btn-light" href="{% url 'storefront:addresses_list' %}">Cancel</a>
+</form>
+{% endblock %}

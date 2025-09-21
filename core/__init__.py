@@ -4,4 +4,4 @@ from __future__ import annotations
 try:
     from .celery import app as celery_app  # noqa: F401
 except Exception:  # ImportError, etc.
-    celery_app = None  # type: ignore[assignment]
+    celery_app = None
